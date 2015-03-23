@@ -43,8 +43,13 @@ namespace MobileId.Adfs
             switch (this.viewId)
             {
                 case AuthView.SignRequestSent:
-                    return "<p>A Mobile ID message has been sent to " + this.param + ". Please click the Continue button and follow the instructions on the mobile phone.</p>"
-                        + loginFormCommonHtml + @"<div class=""submitMargin"" id=""mid_LoginContinue""><input id=""continueButton"" type=""submit"" name=""Action"" value=""Continue""/></div></form>";
+                    return "<p>A Mobile ID message has been sent to " + this.param
+                        + ". Please follow the instructions on the mobile phone.</p>" + loginFormCommonHtml
++ @"<div class=""submitMargin"" id=""mid_LoginContinue""><input id=""continueButton"" type=""submit"" name=""Action"" value=""Continue""/></div></form>";
+//@"<script type=""text/javascript"">
+//document.getElementById('mid_LoginContinue').style.visibility='hidden';
+//window.setTimeout(function continueMobileIdAuth() {document.getElementById('loginForm').submit();},15000);
+//</script>"
                 case AuthView.AuthError:
                     if (this.rspStatus != null)
                         return loginFormCommonHtml + "</form><p>" + this.rspStatus.Code + " (" + this.rspStatus.Message + ")</p>" + this.param;

@@ -31,6 +31,9 @@ namespace MobileId.Adfs
         private ulong webClientMaxRequest = 100;    // maximum number of requests a webClient can process. TODO: move to cfg
         // TODO: max lifetime of a webClient;
 
+        // load dependent assemblies from embedded resource
+        // private readonly static LoadDependencies _loadDependencies = new LoadDependencies();
+
         // EventLog
         // TODO: Should go into "Applications and Services Logs / AD FS / MobileID (or the existing Admin in AD FS)
         private const string EVENTLOGSource = "AD FS MobileID";
@@ -241,7 +244,7 @@ namespace MobileId.Adfs
             AuthRequestDto req = new AuthRequestDto();
             req.PhoneNumber = (string) ctx.Data[MSISDN];
             req.DataToBeSigned = "AP.TEST.Login: Hi ADFS";  // TODO: language dependent string, generate nonce
-            AuthResponseDto rsp = getWebClient().RequestSignature(req, true); /* async */
+            AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */); 
 
             // TODO: check response status. signature maybe already available, error (e.g. no connection) may also occur
 
@@ -270,6 +273,7 @@ namespace MobileId.Adfs
                 logger.TraceData(TraceEventType.Verbose, 0, "READ_CONFIG: file=" + cfgFileName); 
             }
 
+            
             // AuditLog: log provider name and version
             // Verify EventLog Source
             // TODO: CreateEventSource fails if caller has no enough rights. Add error handling and avoid EventLog.WriteEntry if not present
@@ -385,6 +389,7 @@ namespace MobileId.Adfs
             logger.TraceEvent(TraceEventType.Error, 0, "Unsupported formAction: " + formAction);
             return new AdapterPresentation(AuthView.AuthError, new ServiceStatus(ServiceStatusCode.GeneralClientError), null); // TODO: consider client-side timeout
         }
+
     }
 
 }

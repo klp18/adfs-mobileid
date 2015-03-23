@@ -14,7 +14,7 @@ namespace MobileId.Adfs
         // Returns the name of the provider that will be shown in the AD FS management UI (not visible to end users)
         public string AdminName
         {
-            get { return "Mobile ID Authentication Provider 2"; }
+            get { return "Mobile ID Authentication"; }
         }
 
         // Returns an array of strings containing URIs indicating the set of authentication methods implemented by the adapter 

@@ -33,18 +33,15 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>jet-midc.snk</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>..\mobileid.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.IdentityServer.Web">
-      <HintPath>..\..\Microsoft.IdentityServer.Web.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="MobileId.ClientService">
-      <HintPath>..\..\..\..\mid\csharp\Service\bin\Debug\MobileId.ClientService.dll</HintPath>
+      <HintPath>Microsoft.IdentityServer.Web.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.DirectoryServices" />
     <Reference Include="System.Xml.Linq" />
@@ -57,10 +54,18 @@
     <Compile Include="AdapterPresentation.cs" />
     <Compile Include="AuthenticationAdapter.cs" />
     <Compile Include="AuthenticationAdapterMetadata.cs" />
+    <Compile Include="AuthRequestDto.cs" />
+    <Compile Include="AuthResponseDto.cs" />
+    <Compile Include="EventId.cs" />
+    <Compile Include="IAuthentication.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="jet-midc.snk" />
+    <Compile Include="ServiceStatus.cs" />
+    <Compile Include="ServiceStatusCode.cs" />
+    <Compile Include="ServiceStatusColor.cs" />
+    <Compile Include="UserLanguage.cs" />
+    <Compile Include="Util.cs" />
+    <Compile Include="WebClientConfig.cs" />
+    <Compile Include="WebClientImpl.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
