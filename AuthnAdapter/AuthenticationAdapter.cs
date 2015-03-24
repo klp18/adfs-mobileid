@@ -12,7 +12,7 @@ namespace MobileId.Adfs
     public class AuthenticationAdapter : IAuthenticationAdapter
     {
         private static TraceSource logger = new TraceSource("MobileId.Adfs.AuthnAdapter");
-        private static string version = "1.03";
+        private static string version = "1.04";
 
         // keys for data to be transferred via Context
         private const string MSISDN = "msisdn";  // Mobile ID Number to place the signature request
@@ -309,7 +309,14 @@ namespace MobileId.Adfs
         {
             logger.TraceEvent(TraceEventType.Verbose, 0, "TryEndAuthentication(ctx=" + _str(ctx) + ", prf=" + _str(proofData) + ", req=" + _str(request));
 
-            string formAction = (string) proofData.Properties["Action"];
+            string formAction;
+            try {
+                formAction = (string)proofData.Properties["Action"];
+            }
+            catch (KeyNotFoundException) { // form may be tampered by end user
+                formAction = null;
+            }
+            
             string upn = (string)ctx.Data[USERUPN];
             string msspTransId = (string)ctx.Data[MSSPTRXID];
             if (msspTransId == null)

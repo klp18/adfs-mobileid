@@ -32,7 +32,7 @@ namespace MobileId.Adfs
             return "Login with Mobile ID";
         }
 
-        private const string loginFormCommonHtml = @"<form method=""post"" id=""loginForm""><input id=""context"" type=""hidden"" name=""Context"" value=""%Context%""/>";
+        private const string loginFormCommonHtml = @"<form method=""post"" id=""midLoginForm""><input id=""context"" type=""hidden"" name=""Context"" value=""%Context%""/>";
         // The next string is documented as a required field in MSDN, but provokes "duplicated authMethod field" server error response in ADFS 3.5.
         // <input id=""authMethod"" type=""hidden"" name=""AuthMethod"" value=""%AuthMethod%""/>"  
             
@@ -45,11 +45,13 @@ namespace MobileId.Adfs
                 case AuthView.SignRequestSent:
                     return "<p>A Mobile ID message has been sent to " + this.param
                         + ". Please follow the instructions on the mobile phone.</p>" + loginFormCommonHtml
-+ @"<div class=""submitMargin"" id=""mid_LoginContinue""><input id=""continueButton"" type=""submit"" name=""Action"" value=""Continue""/></div></form>";
-//@"<script type=""text/javascript"">
-//document.getElementById('mid_LoginContinue').style.visibility='hidden';
-//window.setTimeout(function continueMobileIdAuth() {document.getElementById('loginForm').submit();},15000);
-//</script>"
++ @"<div class=""submitMargin"" id=""mid_Continue""><input id=""midContinueButton"" type=""submit"" name=""Action"" value=""Continue""/></div></form>
+<script type=""text/javascript"">
+//<![CDATA[
+document.getElementById('mid_Continue').style.visibility='hidden';
+window.setTimeout(function continueMobileIdAuth() {document.getElementById('midContinueButton').click();},15000);
+//[[>
+</script>";
                 case AuthView.AuthError:
                     if (this.rspStatus != null)
                         return loginFormCommonHtml + "</form><p>" + this.rspStatus.Code + " (" + this.rspStatus.Message + ")</p>" + this.param;
