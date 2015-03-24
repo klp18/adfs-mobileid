@@ -17,7 +17,7 @@ If you are familiar with the contents in Integration Guide, you can skip the res
 
 ### Build Environment:
 
-(If you don't want to build from source code, the compiled binaries can be downloaded from the [bin subfolder](./bin)).
+(If you don't want to build from source code, the compiled binaries can be downloaded from the [binaries subfolder](./binaries)).
 
 * Microsoft Visual Studio 2013 (which includes Microsoft .NET Framework 4.5.1)
 * The file Microsoft.IdentityServer.Web.dll. The DLL file can be copied from a Microsoft Windows Server 2012 R2 server.
