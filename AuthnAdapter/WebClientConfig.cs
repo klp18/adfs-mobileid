@@ -2,6 +2,7 @@
 using System.Collections.Specialized;
 using System.Configuration;
 using System.Diagnostics;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Xml;
@@ -49,13 +50,36 @@ namespace MobileId
                 throw new ArgumentNullException("config fileName is null or empty");
                 // TODO: construct a default filename
             }
+            using (FileStream fs = File.OpenRead(fileName))
+            using (TextReader tr = new StreamReader(fs))
+            {
+                return CreateConfig(tr);
+            };
+        }
+
+        public static WebClientConfig CreateConfig(string cfgContent)
+        {
+            if (String.IsNullOrEmpty(cfgContent))
+                throw new ArgumentNullException("cfgContent is null or empty");
+            using (TextReader stream = new StringReader(cfgContent)) {
+                return CreateConfig(stream);
+            }
+
+        }
+
+        public static WebClientConfig CreateConfig(TextReader cfgStream)
+        {
+            if (cfgStream == null)
+            {
+                throw new ArgumentNullException("input stream is null");
+            }
             WebClientConfig cfg = new WebClientConfig();
 
             XmlReaderSettings xmlSetting = new XmlReaderSettings();
             xmlSetting.CloseInput = true;
             xmlSetting.IgnoreProcessingInstructions = true;
             xmlSetting.IgnoreWhitespace = true;
-            using (XmlReader xml = XmlReader.Create(fileName, xmlSetting))
+            using (XmlReader xml = XmlReader.Create(cfgStream, xmlSetting))
             {
                 String s;
                 while (xml.Read())
@@ -64,18 +88,18 @@ namespace MobileId
                     if (xml.Name == "mobileIdClient")
                     {
                         cfg.ApId = xml["AP_ID"];
-                        // cfg.DtbsPrefix = xml["DtbsPrefix"];
-                        if (! string.IsNullOrEmpty(s = xml["RequestTimeOutSeconds"]))
+                        // cfgMid.DtbsPrefix = xml["DtbsPrefix"];
+                        if (!string.IsNullOrEmpty(s = xml["RequestTimeOutSeconds"]))
                             cfg.RequestTimeOutSeconds = int.Parse(s);
                         cfg.ServiceUrlPrefix = xml["ServiceUrlPrefix"];
-                        if (! string.IsNullOrEmpty(s = xml["SrvSideValidation"]))
+                        if (!string.IsNullOrEmpty(s = xml["SrvSideValidation"]))
                             cfg.SrvSideValidation = bool.Parse(s);
                         cfg.SslCertThumbprint = xml["SslCertThumbprint"];
-                        if (! string.IsNullOrEmpty(s = xml["SslKeystore"]))
+                        if (!string.IsNullOrEmpty(s = xml["SslKeystore"]))
                             cfg.SslKeystore = Util.ParseKeyStoreLocation(s);
-                        if (! string.IsNullOrEmpty(s = xml["SslRootCaCertDN"]))
+                        if (!string.IsNullOrEmpty(s = xml["SslRootCaCertDN"]))
                             cfg.SslRootCaCertDN = s;
-                        if (! string.IsNullOrEmpty(s = xml["EnableSubscriberInfo"]))
+                        if (!string.IsNullOrEmpty(s = xml["EnableSubscriberInfo"]))
                             cfg.EnableSubscriberInfo = Boolean.Parse(s);
                         break;
                     }
@@ -184,19 +208,20 @@ namespace MobileId
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder(192);
+            StringBuilder sb = new StringBuilder(512);  // TODO: update on change
             // sorted alphabetically in name
-            sb.Append("ApId=").Append(_apId);
+            sb.Append("{ApId: \"").Append(_apId);
             // sb.Append(", DtbsPrefix=").Append(_dtbsPrefix);
-            sb.Append(", EnabledSubscriberInfo=").Append(_enableSubscriberInfo);
+            sb.Append("\", EnabledSubscriberInfo=").Append(_enableSubscriberInfo);
             sb.Append(", RequestTimeOutSeconds=").Append(_requestTimeOutSeconds);
-            sb.Append(", SeedApTransId=").Append(_seedApTransId);
-            sb.Append(", ServiceUrlPrefix=").Append(_serviceUrlPrefix);
-            sb.Append(", SrvSideValidation=").Append(_srvSideValidation);
+            sb.Append(", SeedApTransId=\"").Append(_seedApTransId);
+            sb.Append("\", ServiceUrlPrefix=\"").Append(_serviceUrlPrefix);
+            sb.Append("\", SrvSideValidation=").Append(_srvSideValidation);
             sb.Append(", SslKeystore=").Append(_sslKeyStore);
-            sb.Append(", SslCertThumbprint=").Append(_sslCertThumbprint);
-            sb.Append(", SslRootCaCertDN=").Append(_sslCaCertDN);
-            sb.Append(", UserLanguageDefault=").Append(_userLanguageDefault);
+            sb.Append(", SslCertThumbprint=\"").Append(_sslCertThumbprint);
+            sb.Append("\", SslRootCaCertDN=\"").Append(_sslCaCertDN);
+            sb.Append("\", UserLanguageDefault=").Append(_userLanguageDefault);
+            sb.Append("}");
             return sb.ToString();
 
         }

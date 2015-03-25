@@ -52,6 +52,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AdapterPresentation.cs" />
+    <Compile Include="AdfsConfig.cs" />
     <Compile Include="AuthenticationAdapter.cs" />
     <Compile Include="AuthenticationAdapterMetadata.cs" />
     <Compile Include="AuthRequestDto.cs" />

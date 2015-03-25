@@ -81,5 +81,18 @@ namespace MobileId
         //{
         //    return ServiceStatusCode.GeneralError; // TODO
         //}
+
+        /// <summary>
+        /// The acceptable length of Data-To-Be-Signed (DTBS) depends on the encoding of text. 
+        /// This method calculate the acceptable length of a DTBS string.
+        /// </summary>
+        /// <param name="dtbs"></param>
+        /// <returns>Maximum number of characters that can be sent to a mobile phone via Mobile ID service</returns>
+        public static int maxDtbsLength(string dtbs)
+        {
+            // TODO
+            return AuthRequestDto.MAX_UTF8_CHARS_DTBS;
+        }
+
     }
 }

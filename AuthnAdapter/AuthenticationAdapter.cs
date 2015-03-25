@@ -23,13 +23,12 @@ namespace MobileId.Adfs
         private const string DTBS = "dtbs";
 
         // objects re-used among authentication "sessions"
-        private WebClientConfig cfg = null;
+        private WebClientConfig cfgMid = null;
+        private AdfsConfig cfgAdfs = null;
         private IAuthentication _webClient = null;
 
         // statistics, also used for recycle_webClient
         private ulong reqCount = 0;
-        private ulong webClientMaxRequest = 100;    // maximum number of requests a webClient can process. TODO: move to cfg
-        // TODO: max lifetime of a webClient;
 
         // load dependent assemblies from embedded resource
         // private readonly static LoadDependencies _loadDependencies = new LoadDependencies();
@@ -41,12 +40,12 @@ namespace MobileId.Adfs
 
         private IAuthentication getWebClient()
         {
-            if (_webClient == null || (++reqCount % webClientMaxRequest) == 0) {
+            if (_webClient == null || (++reqCount % cfgAdfs.WebClientMaxRequest) == 0) {
                 if (_webClient != null)
                     logger.TraceEvent(TraceEventType.Verbose, 0, "delObj: name=WebClientImpl, reason=MaxRequest, id="
                         + System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(_webClient));
                     // see http://stackoverflow.com/questions/5703993/how-to-print-object-id
-                _webClient = new WebClientImpl(cfg);
+                _webClient = new WebClientImpl(cfgMid);
                 logger.TraceEvent(TraceEventType.Verbose, 0, "newObj: name=WebClientImpl, id="
                     + System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(_webClient));
             } else {
@@ -153,6 +152,21 @@ namespace MobileId.Adfs
             return sb.ToString();
         }
 
+        private string _str(System.IO.Stream s)
+        {
+            if (s == null) return "null";
+            StringBuilder sb = new StringBuilder();
+            sb.Append("{canRead: ").Append(s.CanRead);
+            sb.Append("; canWrite: ").Append(s.CanWrite);
+            if (s.CanSeek) {
+                sb.Append("; canSeek: True; Length: ").Append(s.Length);
+            } else {
+                sb.Append("; canSeek: False");
+            };
+            sb.Append("}");
+            return sb.ToString();
+        }
+
         // Check if adapter available for the user
         public bool IsAvailableForUser(Claim identityClaim, IAuthenticationContext ctx)
         {
@@ -161,11 +175,6 @@ namespace MobileId.Adfs
             string upn = identityClaim.Value; // UPN Claim from the mandatory Primary Authentication
             string msisdn = null;
             string snOfDN = null;
-
-            // Define the user properties to load
-            // TODO: attributes should be configurable
-            string propertyMSISDN = "mobile";
-            string propertySNofDN = "msNPCallingStationID";
 
             // Search for the user
             try
@@ -176,10 +185,9 @@ namespace MobileId.Adfs
                     DirectorySearcher ds = new DirectorySearcher(entry);
                     ds.SearchScope = SearchScope.Subtree;
                     ds.Filter = "(&(objectClass=user)(objectCategory=person)(userPrincipalName=" + upn + "))";
-                    ds.PropertiesToLoad.Add(propertyMSISDN);
-                    ds.PropertiesToLoad.Add(propertySNofDN);
-                    // TODO: performance optimization retrieve only needed attributes
-                    // TODO: error handling for the case that required attributes are not available in AD
+                    ds.PropertiesToLoad.Add(cfgAdfs.AdAttrMobile);
+                    ds.PropertiesToLoad.Add(cfgAdfs.AdAttrMidSerialNumber);
+
                     SearchResult result = ds.FindOne();
                     if (result != null)
                     {
@@ -192,12 +200,12 @@ namespace MobileId.Adfs
                             foreach (string propertyValue in propertyCollection[thisProperty])
                             {
                                 // Get the proper value (the attribute may change it's name, better to compare in lowercase)
-                                if (thisProperty.ToLower() == propertyMSISDN.ToLower())
+                                if (thisProperty.ToLower(System.Globalization.CultureInfo.InvariantCulture) == cfgAdfs.AdAttrMobile)
                                 {
                                     msisdn = propertyValue.ToString();
                                     ctx.Data.Add(MSISDN, propertyValue.ToString());
                                 }
-                                if (thisProperty.ToLower() == propertySNofDN.ToLower())
+                                if (thisProperty.ToLower(System.Globalization.CultureInfo.InvariantCulture) == cfgAdfs.AdAttrMidSerialNumber)
                                 {
                                     snOfDN = propertyValue.ToString();
                                     ctx.Data.Add(UKEYSN, propertyValue.ToString());
@@ -205,11 +213,14 @@ namespace MobileId.Adfs
                             }
                         }
                         EventLog.WriteEntry(EVENTLOGSource, "Found user " + upn + " using " + ds.Filter +
-                            " with properties " + propertyMSISDN + "=" + msisdn + "," + propertySNofDN + "=" + snOfDN);
+                            " with properties " + cfgAdfs.AdAttrMobile + "=" + msisdn + "," + cfgAdfs.AdAttrMidSerialNumber + "=" + snOfDN);
+                        logger.TraceEvent(TraceEventType.Verbose, 0, "AdSearch.Found: upn=" + upn + ", filter=" + ds.Filter
+                            + ", " + cfgAdfs.AdAttrMobile + "=" + msisdn + ", " + cfgAdfs.AdAttrMidSerialNumber + "=" + snOfDN);
                     }
                     else
                     {
                         EventLog.WriteEntry(EVENTLOGSource, "User not found " + upn + " using " + ds.Filter, EventLogEntryType.Error, 102);
+                        logger.TraceEvent(TraceEventType.Warning, 0, "User not found in AD: upn=" + upn + ", ldapFilter=" + ds.Filter);
                     }
                     ds.Dispose();
                 }
@@ -225,6 +236,11 @@ namespace MobileId.Adfs
                 EventLog.WriteEntry(EVENTLOGSource, "Method not available for user " + upn + " (no MSISN defined)", EventLogEntryType.Error, 102);
                 logger.TraceEvent(TraceEventType.Warning, 0, "Mobile ID not available for " + upn + ": mobile attribute not found in AD");
                 return false;
+            }
+
+            if (String.IsNullOrEmpty(snOfDN))
+            {
+                // TODO: error handling for the case that the serial number is not available in AD
             }
 
             // store "session"-scope information to ctx
@@ -243,7 +259,9 @@ namespace MobileId.Adfs
             // Start the asynchrous login
             AuthRequestDto req = new AuthRequestDto();
             req.PhoneNumber = (string) ctx.Data[MSISDN];
-            req.DataToBeSigned = "AP.TEST.Login: Hi ADFS";  // TODO: language dependent string, generate nonce
+            req.DataToBeSigned = cfgAdfs.DefaultLoginPrompt;
+            // TODO: language dependent string
+            // TODO: replace {0} by 5-char alphanum nonce
             AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */); 
 
             // TODO: check response status. signature maybe already available, error (e.g. no connection) may also occur
@@ -264,16 +282,33 @@ namespace MobileId.Adfs
         // This is where AD FS passes us the config data as a Stream, if such data was supplied at registration of the adapter
         public void OnAuthenticationPipelineLoad(IAuthenticationMethodConfigData configData)
         {
-            logger.TraceEvent(TraceEventType.Verbose, 0, "OnAuthenticationPipelineLoad(verAdapter={0}, cfg={1}), obj={2})",
-                version, configData.Data, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this));
+            logger.TraceEvent(TraceEventType.Verbose, 0, "OnAuthenticationPipelineLoad(verAdapter={0}, obj={1})",
+                version, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this));
 
-            if (cfg == null) {
-                string cfgFileName = "C:\\midadfs\\MobileIdClient.xml";
-                cfg = WebClientConfig.CreateConfigFromFile(cfgFileName); // TODO: read from configData
-                logger.TraceData(TraceEventType.Verbose, 0, "READ_CONFIG: file=" + cfgFileName); 
+            if (configData.Data != null)
+            {
+                try
+                {
+                    string cfgStr = (new System.IO.StreamReader(configData.Data)).ReadToEnd();
+                    // logger.TraceEvent(TraceEventType.Verbose, 0, "Cfg:\n========\n" + cfgStr + "\n========\n");
+                    configData.Data.Position = 0;
+                    cfgMid = WebClientConfig.CreateConfig(cfgStr);
+                    logger.TraceEvent(TraceEventType.Verbose, 0, "Config.Mid: " + cfgMid);
+                    configData.Data.Position = 0;
+                    cfgAdfs = AdfsConfig.CreateConfig(cfgStr);
+                    logger.TraceEvent(TraceEventType.Verbose, 0, "Config.Adfs: " + cfgAdfs);
+                }
+                catch (Exception ex)
+                {
+                    logger.TraceData(TraceEventType.Error, 0, ex);
+                    throw ex;
+                }
+            }
+            else
+            {
+                throw new ArgumentNullException("configData is null");
             }
 
-            
             // AuditLog: log provider name and version
             // Verify EventLog Source
             // TODO: CreateEventSource fails if caller has no enough rights. Add error handling and avoid EventLog.WriteEntry if not present
@@ -384,8 +419,6 @@ namespace MobileId.Adfs
             if (formAction == "Retry")
             {
                 //// TODO: Retry should start a new asynchron transaction
-                //// TODO: Proper implementation
-                //this.msspTransId = "ID9876";
 
                 //// Display the login process with option to "Cancel"
                 //claims = null;
@@ -394,7 +427,7 @@ namespace MobileId.Adfs
             }
 
             logger.TraceEvent(TraceEventType.Error, 0, "Unsupported formAction: " + formAction);
-            return new AdapterPresentation(AuthView.AuthError, new ServiceStatus(ServiceStatusCode.GeneralClientError), null); // TODO: consider client-side timeout
+            return new AdapterPresentation(AuthView.AuthError, new ServiceStatus(ServiceStatusCode.GeneralClientError), null);
         }
 
     }

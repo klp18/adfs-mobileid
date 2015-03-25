@@ -42,7 +42,7 @@ namespace MobileId
         /// <returns></returns>
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder(196); // empty object: 138 chars
+            StringBuilder sb = new StringBuilder(256); // TODO: update the length on code change (typical value: 240)
             // fields are ordered alphabetically by name
             sb.Append("{ApId:").Append(Util.Str(_apId));
             sb.Append(", Instant:").Append(Util.Str(_instant));
@@ -156,5 +156,6 @@ namespace MobileId
                 _srvSideValidation = value;
             }
         }
+
     }
 }
