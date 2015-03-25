@@ -88,12 +88,12 @@ You also need the certificate of the Certificate Authority (*CA*) for the MID se
 
 ### Step 2: Configuration of Mobile ID Authentication Provider
 
-The Mobile ID Authentication Provider can be configured with a XML file.
-In the alpha release, the file must be located in `C:\midadfs\MobileClient.xml` .
+The Mobile ID Authentication Provider can be configured with a XML file, e.g. `C:\midadfs\MobileAdfs.xml`.
 The content of the configuration file looks like
 
 `````
 <?xml version="1.0" encoding="utf-8" ?>
+<appConfig>
 <mobileIdClient
   AP_ID="mid://dev.swisscom.ch"
   EnableSubscriberInfo = "True"
@@ -101,20 +101,36 @@ The content of the configuration file looks like
   SslCertThumbprint ="59ade4238301c07b5064f7c33d57ca93895a2471"
   ServiceUrlPrefix ="https://soap.pp.mobileid.swisscom.com:8444/soap/services/"
   SslRootCaCertDN ="CN=Swisscom TEST Root CA 2, OU=Digital Certificate Services, O=Swisscom, C=ch"
- />
+/>
+<mobileIdAdfs
+  DefaultLoginPrompt = "Login with Mobile ID to ADFS (code: {0}) ?"
+/>
+</appConfig>
 `````
-You need to specify the attribute values. The semantics of the attributes are
+The configuration contains two elements. The element `mobileIdClient` specifies the Mobild ID Service
+while the element `mobileIdAdfs` the integration of Mobile ID with ADFS. The semantics of the attributes are:
 
-* `AP_ID`: Your Application Provider ID, as assigned by Mobile ID Service Provider. Mandatory.
-* `EnableSubscriberInfo`: Whether to enable the Subscriber Info. If in doubt, set it to `false`.
-* `SslKeystore`: Store location of certificate/key used for Mobile ID connectivity.
-* `SslCertThumbprint`: The SHA1 Thumbprint of certificate used for Mobile ID connectivity. Mandatory.
-* `ServiceUrlPrefix`: URL for Mobile ID service.
-* `SslRootCaCertDN`: Distinguished Name of the Root Certificate in the certificate chain of Mobile ID servers
+* Element `mobileIdClient`:
+  + `AP_ID`: Your Application Provider ID, as assigned by Mobile ID Service Provider. Mandatory.
+  + `EnableSubscriberInfo`: Whether to enable the Subscriber Info. If in doubt, set it to `false`.
+  + `SslKeystore`: Store location of certificate/key used for Mobile ID connectivity.
+  + `SslCertThumbprint`: The SHA1 Thumbprint of certificate used for Mobile ID connectivity. Mandatory.
+  + `ServiceUrlPrefix`: URL for Mobile ID service.
+  + `SslRootCaCertDN`: Distinguished Name of the Root Certificate in the certificate chain of Mobile ID servers
+* Element `mobileIdAdfs`:
+  + `AdAttrMobile`: Attribute name of AD user object for the mobile number. Default: `mobile`.
+  + `AdAttrSerialNumber`: Attribute name of AD user object for the Serial Number of Mobile ID. Default: `msNPCallingStationID`
+  + `DefaultLoginPrompt`: Default login message sent to the mobile phone. 
+     The string can optionally contains the place holder `{0}` which expands to a 5-char random string.
+     Default: `"Login with Mobile ID ({0})?"`
 
 Notes:
-* Changes in `MobileClient.xml` take effect only after the ADFS service has been restarted.
-
+* Only mandatory parameters need be specified in the configuration file.
+* If you have modified the configuration file after installation, you need re-import the config file with the command
+`````
+Import-AdfsAuthenticationProviderConfigurationData -FilePath "C:\midadfs\MobileIdAdfs.xml" -Name MobileID
+`````
+  in PowerShell, and restart the ADFS service.
 
 ### Step 3: Installation of Mobile ID Authentication Provider for ADFS
 
@@ -133,7 +149,7 @@ Alternatively, you can also install the DLL with command `gacutil.exe /i MobileI
 3. Register the DLL with ADFS: In Windows PowerShell prompt, enters
 `````
 $TypeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=1.0.0.0, Culture=neutral, PublicKeyToken=2d8af5277000f5f0, processorArchitecture=MSIL"
-Register-AdfsAuthenticationProvider -TypeName $TypeName -Name "MobileID"
+Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileIdAdfs.xml" -TypeName $TypeName -Name "MobileID"
 `````
 Note: If you build the DLL from source, you should have a different `PublicKeyToken` value. You need to modify the value `PublicKeyToken` in the command above.
 
