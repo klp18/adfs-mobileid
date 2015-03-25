@@ -188,18 +188,15 @@ For Mobile ID authentication, both attributes must be defined.
 
 ## Uninstallation of the binaries
 
-1. Ungister the Mobile ID Authentication Provider from ADFS: In Windows PowerShell prompt, enters
-`````
-Unregister-AdfsAuthenticationProvider MobileID
-`````
-
-2. Restart ADFS service.
-
-3. Remove DLL from GAC:
+1. In ADFS Management Console, unselect `Mobile ID Authentication` from any configured Multi-factor authentications.
+2. Unregister the Mobile ID Authentication Provider from ADFS: In Windows PowerShell prompt, enters
+   `Unregister-AdfsAuthenticationProvider MobileID`
+3. Restart ADFS service.
+4. Remove the DLL of Mobile ID Authentication Provider from GAC:
 
 TODO: PowerShell cmdlet
 
-If `gacutil.exe` is available in your runtime environment, you can also remove DLL from GAC with `gacutil.exe /u MobileId.Adfs.AuthnAdapter` .
+If `gacutil.exe` is available in your runtime environment, you can also remove the DLL from GAC with `gacutil.exe /u MobileId.Adfs.AuthnAdapter` .
 
 Notes:
 * Configuration file and log files are not touched by the uninstallation.
