@@ -46,11 +46,16 @@ namespace MobileId.Adfs
                     return "<p>A Mobile ID message has been sent to " + this.param
                         + ". Please follow the instructions on the mobile phone.</p>" + loginFormCommonHtml
 + @"<div class=""submitMargin"" id=""mid_Continue""><input id=""midContinueButton"" type=""submit"" name=""Action"" value=""Continue""/></div></form>
-<script type=""text/javascript"">
-//<![CDATA[
+<script>
 document.getElementById('mid_Continue').style.visibility='hidden';
 window.setTimeout(function continueMobileIdAuth() {document.getElementById('midContinueButton').click();},15000);
-//[[>
+</script>
+<div id=""midSpin""></div>
+<script src=""/adfs/portal/script/spin.js""></script>
+<script>new Spinner({lines:13, length:22, width:11, radius:25, corners:1, rotate:0,
+  direction:1, color:'#000', speed:1, trail:57, shadow:false, hwaccel:false, 
+  className:'spinner', zIndex:2e9, top:'70%', left:'45%'})
+.spin(document.getElementById('midSpin'));
 </script>";
                 case AuthView.AuthError:
                     if (this.rspStatus != null)

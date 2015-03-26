@@ -126,11 +126,6 @@ while the element `mobileIdAdfs` the integration of Mobile ID with ADFS. The sem
 
 Notes:
 * Only mandatory parameters need be specified in the configuration file.
-* If you have modified the configuration file after installation, you need re-import the config file with the command
-`````
-Import-AdfsAuthenticationProviderConfigurationData -FilePath "C:\midadfs\MobileIdAdfs.xml" -Name MobileID
-`````
-  in PowerShell, and restart the ADFS service.
 
 ### Step 3: Installation of Mobile ID Authentication Provider for ADFS
 
@@ -153,7 +148,14 @@ Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileIdA
 `````
 Note: If you build the DLL from source, you should have a different `PublicKeyToken` value. You need to modify the value `PublicKeyToken` in the command above.
 
-4. Restart the ADFS service
+4. Install static web resources (`C:\midadfs\spin.min.js` in this example) into ADFS: In Windows PowerShell prompt, enters
+`````
+New-AdfsWebTheme -Name custom -SourceName default
+Set-AdfsWebTheme -TargetName custom -AdditionalFileResource @{Uri=’/adfs/portal/script/spin.js’;path="C:\midadfs\spin.min.js"}
+Set-AdfsWebConfig -ActiveThemeName custom
+`````
+
+5. Restart the ADFS service
 
 ### Step 4: Configuration of ADFS
 
@@ -176,7 +178,9 @@ Assuming you have done the user mapping (see ) for the test user, you can connec
 `https://<your.adfs.server.dns>/adfs/ls/IdpInitiatedSignon.aspx`. 
 After login with <user>@<domain> / password, Mobile ID login should occur.
 
-## Operational Task: Mapping of user attributes
+## Operational Tasks
+
+### Mapping of user attributes
 
 Mobile ID authentication provider need to retrieve the mobile ID of the user once the user has been identified with the primary authentication.
 The current release relies on the following LDAP attributes in Active Directory:
@@ -185,6 +189,14 @@ The current release relies on the following LDAP attributes in Active Directory:
 * `mobile`:	a telephone number to which the Mobile ID authentication message will be sent to. Example: `+41791234567`
 
 For Mobile ID authentication, both attributes must be defined.
+
+### Configuration change
+
+If you have modified a configuration file, say `C:\midadfs\MobileIdAdfs.xml`, after installation, you need re-import the config file with the command
+`````
+Import-AdfsAuthenticationProviderConfigurationData -FilePath "C:\midadfs\MobileIdAdfs.xml" -Name MobileID
+`````
+in PowerShell, and restart the ADFS service.
 
 ## Uninstallation of the binaries
 
