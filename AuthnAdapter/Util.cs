@@ -71,10 +71,28 @@ namespace MobileId
                 buffer[i] = rndBytes[i - 8];
             byte[] hash = md5.ComputeHash(buffer);
 
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder(32);
             for (int i = 0; i < hash.Length; i++)
                 sb.Append(hash[i].ToString("X2"));
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Return a random string from the Base64-chars alphabet.
+        /// </summary>
+        /// <param name="charLength">length of the string to be returned</param>
+        /// <returns></returns>
+        public static string BuildRandomBase64Chars(int charLength)
+        {
+            if (charLength <= 0)
+                throw new ArgumentOutOfRangeException("charLength must be possible");
+            int bytesLength = (int) System.Math.Ceiling(0.75 * charLength);
+            byte[] rndBytes = new byte[bytesLength];
+            if (cprng == null)
+                cprng = new RNGCryptoServiceProvider();
+            cprng.GetBytes(rndBytes);
+            string s = Convert.ToBase64String(rndBytes);
+            return s.Substring(0,charLength);
         }
 
         //public static ServiceStatusCode ParseStatusCode(string s)
