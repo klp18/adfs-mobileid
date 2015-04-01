@@ -87,7 +87,7 @@ You also need the certificate of the Certificate Authority (*CA*) for the MID se
 ### Step 2: Configuration of Mobile ID Authentication Provider
 
 The Mobile ID Authentication Provider can be configured with a XML file, e.g. `C:\midadfs\MobileId.Adfs.AuthnAdapter.xml`.
-The folder [samples](../samples) contain several examples. The content of the configuration file looks like
+The folder [samples](samples) contain several examples. The content of the configuration file looks like
 
 `````
 <?xml version="1.0" encoding="utf-8" ?>
@@ -129,32 +129,36 @@ while the element `mobileIdAdfs` the integration of Mobile ID with ADFS. The sem
 1. Download (or build) the `MobileId.Adfs.AuthnAdapter.dll`, for example to `C:\midadfs`.
 
 2. Install the DLL into Global Assembly Cache (GAC): Open a Windows PowerShell prompt, enters
-`````
-Set-location "C:\midadfs"
-[System.Reflection.Assembly]::Load("System.EnterpriseServices, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")
-$publish = New-Object System.EnterpriseServices.Internal.Publish
-$publish.GacInstall("C:\midadfs\MobileId.Adfs.AuthnAdapter.dll")
-`````
-  Alternatively, you can also install the DLL with command `gacutil.exe /i MobileId.Adfs.AuthnAdapter.dll`. 
-  (`gacutil.exe` is available in Visual Studio 2013, default location `C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1A\bin\NETFX 4.5.1 Tools`.)
+   `````
+   Set-location "C:\midadfs"
+   [System.Reflection.Assembly]::Load("System.EnterpriseServices, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")
+   $publish = New-Object System.EnterpriseServices.Internal.Publish
+   $publish.GacInstall("C:\midadfs\MobileId.Adfs.AuthnAdapter.dll")
+   `````
+   Alternatively, you can also install the DLL with command `gacutil.exe /i MobileId.Adfs.AuthnAdapter.dll`. 
+   (`gacutil.exe` is available in Visual Studio 2013, default location `C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1A\bin\NETFX 4.5.1 Tools`.)
 
 3. Register the DLL with ADFS: Take a note of the version of `MobileId.Adfs.AuthenticationAdapter.dll` (right-click the DLL file in Windows Explorer, select `Properties`, `Details`, read `File Version`). In the example below, we assume it is `1.0.0.1`. In Windows PowerShell prompt, enters
-`````
-$TypeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=1.0.0.1, Culture=neutral, PublicKeyToken=2d8af5277000f5f0, processorArchitecture=MSIL"
-Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileId.Adfs.AuthnAdapter.xml" -TypeName $TypeName -Name "MobileID"
-`````
-  Notes: 
-  * If you build the DLL from source, you may have a different `PublicKeyToken` value. In this case, you need to modify the value `PublicKeyToken` in the command above.
-  * If the DLL has a different value, you need to replace the value of `Version`.
+   `````
+   $TypeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=1.0.0.1, Culture=neutral, PublicKeyToken=2d8af5277000f5f0, processorArchitecture=MSIL"
+   Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileId.Adfs.AuthnAdapter.xml" -TypeName $TypeName -Name "MobileID"
+   `````
+   Notes: 
+   * If you build the DLL from source, you may have a different `PublicKeyToken` value. In this case, you need to modify the value `PublicKeyToken` in the command above.
+   * If the DLL has a different value, you need to replace the value of `Version`.
 
 4. Install static web resources (`C:\midadfs\spin.min.js` in this example) into ADFS: In Windows PowerShell prompt, enters
-`````
-New-AdfsWebTheme -Name custom -SourceName default
-Set-AdfsWebTheme -TargetName custom -AdditionalFileResource @{Uri="/adfs/portal/script/spin.js";path="C:\midadfs\spin.min.js"}
-Set-AdfsWebConfig -ActiveThemeName custom
-`````
+   `````
+   New-AdfsWebTheme -Name custom -SourceName default
+   Set-AdfsWebTheme -TargetName custom -AdditionalFileResource @{Uri="/adfs/portal/script/spin.js";path="C:\midadfs\spin.min.js"}
+   Set-AdfsWebConfig -ActiveThemeName custom
+   `````
 
-5. Restart the `Active Directory Federation Services`.
+5. Restart the `Active Directory Federation Services`, e.g. in command line prompt
+   `````
+   net stop adfsSrv
+   net start adfsSrv
+   `````
 
 ### Step 4: Configuration of ADFS
 
@@ -164,8 +168,8 @@ This depends on your use case. For the verification purpose, configure ADFS as f
    start `Server Manager`, select `Tools`, `AD FS Management`.
 
 2. In `Authentication Policies`, edit `Global Authentication Policy`.
-  For Primary Authentication, enable `Form Authentication` for `Extranet` and `Intranet` but do not enable `device authentication`.
-  For Multi-faction Authentication, require MFA for both `Intranet`and `Extranet`, select 'Mobile ID Authentation' as `additional authentication method`.
+   For Primary Authentication, enable `Form Authentication` for `Extranet` and `Intranet` but do not enable `device authentication`.
+   For Multi-faction Authentication, require MFA for both `Intranet`and `Extranet`, select 'Mobile ID Authentation' as `additional authentication method`.
 
 3. TODO: Make sure that the service account of ADFS have access to the certificate/key used by Mobile ID (step 1.2.2).
 
@@ -201,14 +205,15 @@ Restart-Service adfsSrv
 ## Uninstallation of the binaries
 
 1. In ADFS Management Console, unselect `Mobile ID Authentication` from any configured Multi-factor authentications.
+
 2. Unregister the Mobile ID Authentication Provider from ADFS: In Windows PowerShell prompt, enter
    `Unregister-AdfsAuthenticationProvider MobileID`
+
 3. Restart ADFS service.
+
 4. Remove the DLL of Mobile ID Authentication Provider from GAC:
-
-TODO: PowerShell cmdlet
-
-If `gacutil.exe` is available in your runtime environment, you can also remove the DLL from GAC with `gacutil.exe /u MobileId.Adfs.AuthnAdapter` .
+   If `gacutil.exe` is available in your runtime environment, you can also remove the DLL from GAC with `gacutil.exe /u MobileId.Adfs.AuthnAdapter` .
+   TODO: PowerShell cmdlet
 
 Notes:
 * Configuration file and log files are not touched by the uninstallation.
