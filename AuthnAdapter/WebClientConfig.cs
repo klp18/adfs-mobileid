@@ -19,17 +19,21 @@ namespace MobileId
         // mandatory input from caller
         string _apId = null;
         string _sslCertThumbprint = null;
-        string _serviceUrlPrefix = null;
 
         // optional input from caller
+        string _sslCaCertDN = "CN=Swisscom Root CA 2, OU=Digital Certificate Services, O=Swisscom, C=ch";
         StoreLocation _sslKeyStore = StoreLocation.CurrentUser;
         UserLanguage _userLanguageDefault = UserLanguage.en;
+        string _serviceUrlPrefix = "https://mobileid.swisscom.com/soap/services/";
         // string _dtbsPrefix = null;
         bool _srvSideValidation = true;
         int _requestTimeOutSeconds = 80;
-        string _sslCaCertDN = "CN=Swisscom TEST Root CA 2, OU=Digital Certificate Services, O=Swisscom, C=ch";
         string _seedApTransId = "Some ASCII text to be used to build the unique AP_TransId in request";
         bool _enableSubscriberInfo = false;
+        bool _ignoreUserSn = false;
+        bool _ignoreUserSnChange = false;
+        int _pollResponseDelaySeconds = 15;
+        int _pollResponseIntervalSeconds = 1;
 
         //// not used. doesn't work
         ///// <summary>
@@ -87,9 +91,10 @@ namespace MobileId
                     // we process only the <mobileIdClient .../> element
                     if (xml.Name == "mobileIdClient")
                     {
+                        // Warning: Due to input validation, the processing order of the attributes may be important.
                         cfg.ApId = xml["AP_ID"];
                         // cfgMid.DtbsPrefix = xml["DtbsPrefix"];
-                        if (!string.IsNullOrEmpty(s = xml["RequestTimeOutSeconds"]))
+                        if (!string.IsNullOrWhiteSpace(s = xml["RequestTimeOutSeconds"]))
                             cfg.RequestTimeOutSeconds = int.Parse(s);
                         cfg.ServiceUrlPrefix = xml["ServiceUrlPrefix"];
                         if (!string.IsNullOrEmpty(s = xml["SrvSideValidation"]))
@@ -101,6 +106,13 @@ namespace MobileId
                             cfg.SslRootCaCertDN = s;
                         if (!string.IsNullOrEmpty(s = xml["EnableSubscriberInfo"]))
                             cfg.EnableSubscriberInfo = Boolean.Parse(s);
+                        cfg.SeedApTransId = xml["SeedApTransId"];
+                        if (!string.IsNullOrWhiteSpace(s = xml["PollResponseDelaySeconds"]))
+                            cfg.PollResponseDelaySeconds = int.Parse(s);
+                        if (!string.IsNullOrWhiteSpace(s = xml["PollResponseIntervalSeconds"]))
+                            cfg.PollResponseIntervalSeconds = int.Parse(s);
+                        // TODO: add a rule if a new config parameter has been introduced
+                        
                         break;
                     }
                 }
@@ -134,23 +146,6 @@ namespace MobileId
             get { return _userLanguageDefault; }
             set { _userLanguageDefault = value; } 
         }
-
-        ///// <summary>
-        ///// Determines how verbose is the logging is. Can be 0 (only errors are logged), 1 (warning, error), 2 (info, warning, error), 3 (all messages are logged)
-        ///// Default is 2.
-        ///// </summary>
-        //[ConfigurationProperty("LogVerbosity", IsRequired = false, DefaultValue = 2)]
-        //public int LogVerbosity
-        //{ 
-        //    get { return _logVerbosity; }
-        //    set { 
-        //        int new_value = (value < 0) ? 0 : (value > 3) ? 3 : value ;
-        //        if (_logVerbosity != new_value) {
-        //            _logVerbosity = new_value;
-        //            Log.SetLogVerbosity(_logVerbosity);
-        //        }
-        //    }
-        //}
 
         [ConfigurationProperty("SslKeystore", IsRequired = false, DefaultValue = "CurrentUser")]
         public StoreLocation SslKeystore
@@ -198,12 +193,49 @@ namespace MobileId
 
         public string SeedApTransId {
             get { return _seedApTransId; }
-            set { _seedApTransId = value; }
+            set { if (value != null) _seedApTransId = value; }
         }
 
         public bool EnableSubscriberInfo { 
             get { return _enableSubscriberInfo;}
             set { _enableSubscriberInfo = value; }
+        }
+
+        public bool IgnoreUserSn {
+            get { return _ignoreUserSn; }
+            set { _ignoreUserSn = value; }
+        }
+
+        public bool IgnoreUserSnChange
+        {
+            get { return _ignoreUserSnChange; }
+            set { _ignoreUserSnChange = value; }
+        }
+
+        public int RequestTimeOutSeconds
+        {
+            get { return _requestTimeOutSeconds; }
+            set { if (value > 0 && value < 300) _requestTimeOutSeconds = value; }
+        }
+
+        /// <summary>
+        /// Timespan, in seconds, between the asynchronous RequestSignature(...) and the first PollSignature(...)
+        /// Must be an integer between 1 and RequestTimeOutSeconds.
+        /// </summary>
+        public int PollResponseDelaySeconds
+        {
+            get { return _pollResponseDelaySeconds; }
+            set { if (value > 0 && value < _requestTimeOutSeconds) _pollResponseDelaySeconds = value; }
+        }
+
+        /// <summary>
+        /// Timespan, in seconds, between two consecutive PollSignature(...).
+        /// Must be an integer between 1 and RequestTimeOutSeconds.
+        /// </summary>
+        public int PollResponseIntervalSeconds
+        {
+            get { return _pollResponseIntervalSeconds; }
+            set { if (value > 0 && value < _requestTimeOutSeconds) _pollResponseIntervalSeconds = value; }
         }
 
         public override string ToString()
@@ -212,7 +244,11 @@ namespace MobileId
             // sorted alphabetically in name
             sb.Append("{ApId: \"").Append(_apId);
             // sb.Append(", DtbsPrefix=").Append(_dtbsPrefix);
-            sb.Append("\", EnabledSubscriberInfo=").Append(_enableSubscriberInfo);
+            sb.Append("\", EnableSubscriberInfo=").Append(_enableSubscriberInfo);
+            sb.Append("\", IgnoreUserSn=").Append(_ignoreUserSn);
+            sb.Append("\", IgnoreUserSnChange=").Append(_ignoreUserSnChange);
+            sb.Append(", PollResponseDelaySeconds=").Append(_pollResponseDelaySeconds);
+            sb.Append(", PollResponseIntervalSeconds=").Append(_pollResponseIntervalSeconds);
             sb.Append(", RequestTimeOutSeconds=").Append(_requestTimeOutSeconds);
             sb.Append(", SeedApTransId=\"").Append(_seedApTransId);
             sb.Append("\", ServiceUrlPrefix=\"").Append(_serviceUrlPrefix);
@@ -224,11 +260,7 @@ namespace MobileId
             sb.Append("}");
             return sb.ToString();
 
-        }
 
-        public int RequestTimeOutSeconds {
-            get { return _requestTimeOutSeconds; }
-            set { _requestTimeOutSeconds = value; }
         }
     }
 }

@@ -11,6 +11,12 @@ namespace MobileId.Adfs
         string _adAttrMobile = "mobile";
         string _adAttrMidSerialNumber = "msNPCallingStationID".ToLower();
         string _defaultLoginPrompt = "Login with Mobile ID ({0})?";
+        bool _ssoOnCancel = false;
+        int _sessionTimeoutSeconds = 300;
+        int _sessionMaxTries = 5;
+        bool _showDebugMsg = false;
+        bool _expShowWSignOut = false;
+        int _loginNonceLength = 5;
 
         /// <summary>
         /// A WebClient can be re-used to send requests. If the number of requests exceed this number, 
@@ -29,7 +35,8 @@ namespace MobileId.Adfs
         /// </summary>
         public string AdAttrMobile { 
             get { return _adAttrMobile; }
-            set { if (!String.IsNullOrEmpty(value) && !value.Contains(" "))
+            set {
+                if (!String.IsNullOrWhiteSpace(value) && !value.Contains(" "))
                 _adAttrMobile = value.ToLower(System.Globalization.CultureInfo.InvariantCulture); 
             }
         }
@@ -43,7 +50,8 @@ namespace MobileId.Adfs
         /// </summary>
         public string AdAttrMidSerialNumber {
             get { return _adAttrMidSerialNumber;}
-            set { if (!String.IsNullOrEmpty(value) && !value.Contains(" ")) 
+            set {
+                if (!String.IsNullOrWhiteSpace(value) && !value.Contains(" ")) 
                 _adAttrMidSerialNumber = value.ToLower(System.Globalization.CultureInfo.InvariantCulture); 
             }
         }
@@ -63,6 +71,53 @@ namespace MobileId.Adfs
                 };
             }}
         }
+
+        /// <summary>
+        /// If true, the Cancel button in Sign In pages will initiate a Single Sign Out of all sites.
+        /// Otherwise, the button will initiate a Local Sign Out.
+        /// </summary>
+        public bool SsoOnCancel {
+            get { return _ssoOnCancel; }
+            set { _ssoOnCancel = value;}
+        }
+
+        /// <summary>
+        /// Experimental feature: Enable the WSignout button in the Retry-Or-Cancel page if this property is true.
+        /// </summary>
+        public bool ExpShowWSignOut {
+            get { return _expShowWSignOut; }
+            set { _expShowWSignOut = value; }
+        }
+
+        /// <summary>
+        /// Maximum duration of an Mobile ID authentication session (0 or more (re)tries)
+        /// </summary>
+        public int SessionTimeoutSeconds {
+            get { return _sessionTimeoutSeconds; }
+            set { if (value > 0) _sessionTimeoutSeconds = value;}
+        }
+
+        /// <summary>
+        /// Maximum number of tries (i.e. invocation of MobileId.IAuthentication.RequestSignature) during an Mobile ID authentication session
+        /// </summary>
+        public int SessionMaxTries {
+            get { return _sessionMaxTries;}
+            set { if (value > 0) _sessionMaxTries = value; }
+        }
+
+        /// <summary>
+        /// If true, display verbose messages in web browser in case of error; otherwise, less error details are leaked in browser in case of error.
+        /// </summary>
+        public bool ShowDebugMsg {
+            get { return _showDebugMsg; }
+            set { _showDebugMsg = value; }
+        }
+
+        public int LoginNonceLength {
+            get { return _loginNonceLength; }
+            set { if (value > 0 && value < AuthRequestDto.MAX_UTF8_CHARS_DTBS ) _loginNonceLength = value; }
+        }
+        
 
         public static AdfsConfig CreateConfig(TextReader cfgStream)
         {
@@ -85,10 +140,22 @@ namespace MobileId.Adfs
                     if (xml.Name == "mobileIdAdfs")
                     {
                         cfg.AdAttrMobile = xml["AdAttrMobile"];
-                        if (!String.IsNullOrEmpty(s = xml["WebClientMaxRequest"]))
+                        if (!String.IsNullOrWhiteSpace(s = xml["WebClientMaxRequest"]))
                           cfg.WebClientMaxRequest = ulong.Parse(s);
                         cfg.AdAttrMidSerialNumber = xml["AdAttrMidSerialNumber"];
                         cfg.DefaultLoginPrompt = xml["DefaultLoginPrompt"];
+                        if (!String.IsNullOrWhiteSpace(s = xml["SsoOnCancel"]))
+                            cfg.SsoOnCancel = bool.Parse(xml[s]);
+                        if (!String.IsNullOrWhiteSpace(s = xml["SessionTimeoutSeconds"]))
+                            cfg.SessionTimeoutSeconds = int.Parse(s);
+                        if (!String.IsNullOrWhiteSpace(s = xml["SessionMaxTries"]))
+                            cfg.SessionMaxTries = int.Parse(s);
+                        if (!String.IsNullOrWhiteSpace(s = xml["ShowDebugMsg"]))
+                            cfg.ShowDebugMsg = bool.Parse(s);
+                        if (!String.IsNullOrWhiteSpace(s = xml["ExpShowWSignout"]))
+                            cfg.ExpShowWSignOut = bool.Parse(s);
+                        if (!String.IsNullOrWhiteSpace(s = xml["LoginNonceLength"]))
+                            cfg.LoginNonceLength = int.Parse(s);
                         // TODO: update on change
                         break;
                     }
@@ -100,8 +167,8 @@ namespace MobileId.Adfs
 
         public static AdfsConfig CreateConfig(string cfgContent)
         {
-            if (String.IsNullOrEmpty(cfgContent))
-                throw new ArgumentNullException("cfgContent is null or empty");
+            if (String.IsNullOrWhiteSpace(cfgContent))
+                throw new ArgumentNullException("cfgContent is null or whitespace");
             using (TextReader stream = new StringReader(cfgContent))
             {
                 return CreateConfig(stream);
@@ -112,11 +179,16 @@ namespace MobileId.Adfs
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder(196); // TODO: update on change
-            // sorted alphabetically in name
+            // sorted alphabetically in name. No output for experimental features.
             sb.Append("{AdAttrMobile: \"").Append(_adAttrMobile);
             sb.Append("\"; AdAttrMidSerialNumber: \"").Append(_adAttrMidSerialNumber);
             sb.Append("\"; DefaultLoginPrompt: \"").Append(_defaultLoginPrompt);
-            sb.Append("\"; WebClientMaxRequest: ").Append(_webClientMaxRequest);
+            sb.Append("\"; LoginNonceLength: ").Append(_loginNonceLength);
+            sb.Append("; SessionMaxTries: ").Append(_sessionMaxTries);
+            sb.Append("; SessionTimeoutSeconds: ").Append(_sessionTimeoutSeconds);
+            sb.Append("; ShowDebugMsg: ").Append(_showDebugMsg);
+            sb.Append("; SsoOnCancle: ").Append(_ssoOnCancel);
+            sb.Append("; WebClientMaxRequest: ").Append(_webClientMaxRequest);
             // TODO: update on change
             sb.Append("}");
             return sb.ToString();
