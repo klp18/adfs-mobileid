@@ -41,9 +41,7 @@ The address range is specific to an Application Provider (*AP*) and configured b
 An ADFS server must establish a mutually authenticated SSL/TLS connection with a MID server before calling the MID services.
 During the enrollment process of Mobile ID Application Provider Account, you have created a SSL/TLS client certificate for 
 your Mobile ID connection. It is recommend not to re-use the existing certificate/keys of ADFS service.
-You also need the certificate of the Certificate Authority (*CA*) for the MID servers, which can be downloaded from
-
-* [http://aia.swissdigicert.ch/sdcs-root2.crt] (SHA1 thumbprint `77474fc630e40f4c47643f84bab8c6954a8a41ec`, SHA256 thumbprint `f09b122c7114f4a09bd4ea4f4a99d558b46e4c25cd81140d29c05613914c3841`)
+You also need the certificate of the Certificate Authority (*CA*) for the MID servers, which is located in [certs](../certs) folder.
 
 ##### Configuration for SSL/TLS:
 
@@ -67,7 +65,7 @@ You also need the certificate of the Certificate Authority (*CA*) for the MID se
 1.2.3. Verify the SSL client certificate has been correctly imported and trusted:
 
   In Certificate Management Console (`certmgr.msc`), navigate to Personal > Certificates, double-click the certificate imported in step 1, 
-  select `Certification Path`, the `Certificate stutus` should displays "This certificate is OK". Do not close the console now.
+  select `Certification Path`, the `Certificate status` should displays "This certificate is OK". Do not close the console now.
 
 1.2.4. Configure trust to Root CA of MID servers:
    In the open console, navigate to `Trusted Root Certificate Authority`,
@@ -88,19 +86,17 @@ You also need the certificate of the Certificate Authority (*CA*) for the MID se
 
 ### Step 2: Configuration of Mobile ID Authentication Provider
 
-The Mobile ID Authentication Provider can be configured with a XML file, e.g. `C:\midadfs\MobileAdfs.xml`.
-The content of the configuration file looks like
+The Mobile ID Authentication Provider can be configured with a XML file, e.g. `C:\midadfs\MobileId.Adfs.AuthnAdapter.xml`.
+The folder [samples](../samples) contain several examples. The content of the configuration file looks like
 
 `````
 <?xml version="1.0" encoding="utf-8" ?>
 <appConfig>
 <mobileIdClient
   AP_ID="mid://dev.swisscom.ch"
-  EnableSubscriberInfo = "True"
   SslKeystore = "LocalMachine"
   SslCertThumbprint ="59ade4238301c07b5064f7c33d57ca93895a2471"
-  ServiceUrlPrefix ="https://soap.pp.mobileid.swisscom.com:8444/soap/services/"
-  SslRootCaCertDN ="CN=Swisscom TEST Root CA 2, OU=Digital Certificate Services, O=Swisscom, C=ch"
+// TODO: ServicePromptPrefix
 />
 <mobileIdAdfs
   DefaultLoginPrompt = "Login with Mobile ID to ADFS (code: {0}) ?"
@@ -112,20 +108,21 @@ while the element `mobileIdAdfs` the integration of Mobile ID with ADFS. The sem
 
 * Element `mobileIdClient`:
   + `AP_ID`: Your Application Provider ID, as assigned by Mobile ID Service Provider. Mandatory.
-  + `EnableSubscriberInfo`: Whether to enable the Subscriber Info. If in doubt, set it to `false`.
-  + `SslKeystore`: Store location of certificate/key used for Mobile ID connectivity.
-  + `SslCertThumbprint`: The SHA1 Thumbprint of certificate used for Mobile ID connectivity. Mandatory.
-  + `ServiceUrlPrefix`: URL for Mobile ID service.
-  + `SslRootCaCertDN`: Distinguished Name of the Root Certificate in the certificate chain of Mobile ID servers
+  + `EnableSubscriberInfo`: Whether to enable the Subscriber Info. Default: `false`
+  + `ServiceUrlPrefix`: URL for Mobile ID service, must end with `/`. Default: `https://mobileid.swisscom.com/soap/services/`
+  + `SslKeystore`: Store location of certificate/key used for Mobile ID connectivity. For ADFS, the value should be usually `LocalMachine`. Default: `CurrentUser`
+  + `SslCertThumbprint`: The SHA1 Thumbprint of certificate used for Mobile ID connectivity. The thumbprint can be read out of the `Certificate` GUI (i.e. double-click the certificate file), or with a PowerShell cmdlet like `Get-ChildItem -Path cert:\\LocalMachine\My`. Mandatory.
+  + `SslRootCaCertDN`: Distinguished Name of the Root Certificate in the certificate chain of Mobile ID servers. Default: "CN=Swisscom Root CA 2, OU=Digital Certificate Services, O=Swisscom, C=ch"
 * Element `mobileIdAdfs`:
   + `AdAttrMobile`: Attribute name of AD user object for the mobile number. Default: `mobile`.
   + `AdAttrSerialNumber`: Attribute name of AD user object for the Serial Number of Mobile ID. Default: `msNPCallingStationID`
-  + `DefaultLoginPrompt`: Default login message sent to the mobile phone. 
-     The string can optionally contains the place holder `{0}` which expands to a 5-char random string.
+  + `DefaultLoginPrompt`: Default login message sent to the mobile phone.
+     The string can optionally contains one place holder `{0}` which expands to a 5-char random string.
      Default: `"Login with Mobile ID ({0})?"`
-
-Notes:
-* Only mandatory parameters need be specified in the configuration file.
+  + `LoginNonceLength`: Length of the random string to be included in the login prompt (see parameter `DefaultLoginPrompt`). Default: 5
+  + `SessionMaxTries`:  In an *Mobile ID authentication session", a user can retry the Mobile ID after an unsuccessful login. This is the maximum number of unsucessful login tries in a Mobile ID authentication session. Default: `5`.
+  + `SessionTimeoutSeconds`: Maximum duration, in seconds, of a Mobile ID authentication session.
+  + `ShowDebugMsg`: If this parameter is `true`, debugging information may be displayed in web browser in case of errors. Otherwise the debugging information is not displayed. (TODO: not yet implmented in alpha release.) Default: `false` 
 
 ### Step 3: Installation of Mobile ID Authentication Provider for ADFS
 
@@ -136,26 +133,28 @@ Notes:
 Set-location "C:\midadfs"
 [System.Reflection.Assembly]::Load("System.EnterpriseServices, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")
 $publish = New-Object System.EnterpriseServices.Internal.Publish
-$publish.GacInstall("C:\midadfs\ADFS-MobileID.dll")
+$publish.GacInstall("C:\midadfs\MobileId.Adfs.AuthnAdapter.dll")
 `````
-Alternatively, you can also install the DLL with command `gacutil.exe /i MobileId.Adfs.AuthnAdapter.dll`. 
-(`gacutil.exe` is available in Visual Studio 2013, default location `C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1A\bin\NETFX 4.5.1 Tools`.)
+  Alternatively, you can also install the DLL with command `gacutil.exe /i MobileId.Adfs.AuthnAdapter.dll`. 
+  (`gacutil.exe` is available in Visual Studio 2013, default location `C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1A\bin\NETFX 4.5.1 Tools`.)
 
-3. Register the DLL with ADFS: In Windows PowerShell prompt, enters
+3. Register the DLL with ADFS: Take a note of the version of `MobileId.Adfs.AuthenticationAdapter.dll` (right-click the DLL file in Windows Explorer, select `Properties`, `Details`, read `File Version`). In the example below, we assume it is `1.0.0.1`. In Windows PowerShell prompt, enters
 `````
-$TypeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=1.0.0.0, Culture=neutral, PublicKeyToken=2d8af5277000f5f0, processorArchitecture=MSIL"
-Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileIdAdfs.xml" -TypeName $TypeName -Name "MobileID"
+$TypeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=1.0.0.1, Culture=neutral, PublicKeyToken=2d8af5277000f5f0, processorArchitecture=MSIL"
+Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileId.Adfs.AuthnAdapter.xml" -TypeName $TypeName -Name "MobileID"
 `````
-Note: If you build the DLL from source, you should have a different `PublicKeyToken` value. You need to modify the value `PublicKeyToken` in the command above.
+  Notes: 
+  * If you build the DLL from source, you may have a different `PublicKeyToken` value. In this case, you need to modify the value `PublicKeyToken` in the command above.
+  * If the DLL has a different value, you need to replace the value of `Version`.
 
 4. Install static web resources (`C:\midadfs\spin.min.js` in this example) into ADFS: In Windows PowerShell prompt, enters
 `````
 New-AdfsWebTheme -Name custom -SourceName default
-Set-AdfsWebTheme -TargetName custom -AdditionalFileResource @{Uri=’/adfs/portal/script/spin.js’;path="C:\midadfs\spin.min.js"}
+Set-AdfsWebTheme -TargetName custom -AdditionalFileResource @{Uri="/adfs/portal/script/spin.js";path="C:\midadfs\spin.min.js"}
 Set-AdfsWebConfig -ActiveThemeName custom
 `````
 
-5. Restart the ADFS service
+5. Restart the `Active Directory Federation Services`.
 
 ### Step 4: Configuration of ADFS
 
@@ -192,16 +191,17 @@ For Mobile ID authentication, both attributes must be defined.
 
 ### Configuration change
 
-If you have modified a configuration file, say `C:\midadfs\MobileIdAdfs.xml`, after installation, you need re-import the config file with the command
+If you have modified a configuration file, say `C:\midadfs\MobileId.Adfs.AuthnAdapter.xml`, after installation,
+you need re-import the config file into ADFS with PowerShell and restart the and restart the `Active Directory Federation Services`:
 `````
-Import-AdfsAuthenticationProviderConfigurationData -FilePath "C:\midadfs\MobileIdAdfs.xml" -Name MobileID
+Import-AdfsAuthenticationProviderConfigurationData -FilePath "C:\midadfs\MobileId.Adfs.AuthnAdapter.xml" -Name "MobileID"
+Restart-Service adfsSrv
 `````
-in PowerShell, and restart the ADFS service.
 
 ## Uninstallation of the binaries
 
 1. In ADFS Management Console, unselect `Mobile ID Authentication` from any configured Multi-factor authentications.
-2. Unregister the Mobile ID Authentication Provider from ADFS: In Windows PowerShell prompt, enters
+2. Unregister the Mobile ID Authentication Provider from ADFS: In Windows PowerShell prompt, enter
    `Unregister-AdfsAuthenticationProvider MobileID`
 3. Restart ADFS service.
 4. Remove the DLL of Mobile ID Authentication Provider from GAC:
@@ -281,7 +281,7 @@ The sample configuration segment write all tracing messages to Windows Event Log
 1.	Check out the source code from here to your development PC, for example, folder `H:\midadfs` (subfolders are `Service` and `AuthnAdapter`).
 
 2.	Copy the file Microsoft.IdentityServer.Web.dll from a Windows 2012 R2 server which has the role 
-        Active Directory Federation Services (AD FS) installed. By default, the DLL file is located in
+        `Active Directory Federation Services` (AD FS) installed. By default, the DLL file is located in
 	`C:\Windows\ADFS` on your server. 
         The DLL file should be copied to the folder of the project `AuthnAdapter`. In the example above, it is `H:\midadfs\AuthnAdapter`.
 
@@ -289,5 +289,9 @@ The sample configuration segment write all tracing messages to Windows Event Log
 	Place it in the folder where the *.sln file is located (`H:\midadfs` in the example).
 
 The solution should be ready to build now. Each project folder has a README file which briefly describes the project. The target audience is developer.
+
+# Known Issues
+
+* HTTP Proxy between Mobile ID Servers and ADFS Server(s): currently untested.
 
 __END__
