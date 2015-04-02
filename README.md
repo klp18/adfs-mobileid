@@ -114,8 +114,8 @@ while the element `mobileIdAdfs` the integration of Mobile ID with ADFS. The sem
   + `SslCertThumbprint`: The SHA1 Thumbprint of certificate used for Mobile ID connectivity. The thumbprint can be read out of the `Certificate` GUI (i.e. double-click the certificate file), or with a PowerShell cmdlet like `Get-ChildItem -Path cert:\\LocalMachine\My`. Mandatory.
   + `SslRootCaCertDN`: Distinguished Name of the Root Certificate in the certificate chain of Mobile ID servers. Default: "CN=Swisscom Root CA 2, OU=Digital Certificate Services, O=Swisscom, C=ch"
 * Element `mobileIdAdfs`:
-  + `AdAttrMobile`: Attribute name of AD user object for the mobile number. Default: `mobile`.
-  + `AdAttrSerialNumber`: Attribute name of AD user object for the Serial Number of Mobile ID. Default: `msNPCallingStationID`
+  + `AdAttrMobile`: Attribute name of AD user object for the mobile number. The attribute should have exactly one value. Default: `mobile`.
+  + `AdAttrSerialNumber`: Attribute name of AD user object for the Serial Number of Mobile ID. The attribute should have at most one value. Default: `msNPCallingStationID`
   + `DefaultLoginPrompt`: Default login message sent to the mobile phone.
      The string can optionally contains one place holder `{0}` which expands to a 5-char random string.
      Default: `"Login with Mobile ID ({0})?"`
