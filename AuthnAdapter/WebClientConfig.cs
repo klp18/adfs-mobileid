@@ -173,12 +173,12 @@ namespace MobileId
         [ConfigurationProperty("SslRootCaCertDN", IsRequired = true)]
         public string SslRootCaCertDN {
             get { return _sslCaCertDN; }
-            set { _sslCaCertDN = value;  }
+            set { if (! string.IsNullOrEmpty(value)) _sslCaCertDN = value;  }
         }
 
         public string ServiceUrlPrefix {
             get { return _serviceUrlPrefix; }
-            set { _serviceUrlPrefix = value;}
+            set { if (! string.IsNullOrEmpty(value)) _serviceUrlPrefix = value;}
         }
 
         //public string DtbsPrefix { 
@@ -244,20 +244,20 @@ namespace MobileId
             // sorted alphabetically in name
             sb.Append("{ApId: \"").Append(_apId);
             // sb.Append(", DtbsPrefix=").Append(_dtbsPrefix);
-            sb.Append("\", EnableSubscriberInfo=").Append(_enableSubscriberInfo);
-            sb.Append("\", IgnoreUserSn=").Append(_ignoreUserSn);
-            sb.Append("\", IgnoreUserSnChange=").Append(_ignoreUserSnChange);
-            sb.Append(", PollResponseDelaySeconds=").Append(_pollResponseDelaySeconds);
-            sb.Append(", PollResponseIntervalSeconds=").Append(_pollResponseIntervalSeconds);
-            sb.Append(", RequestTimeOutSeconds=").Append(_requestTimeOutSeconds);
-            sb.Append(", SeedApTransId=\"").Append(_seedApTransId);
-            sb.Append("\", ServiceUrlPrefix=\"").Append(_serviceUrlPrefix);
-            sb.Append("\", SrvSideValidation=").Append(_srvSideValidation);
-            sb.Append(", SslKeystore=").Append(_sslKeyStore);
-            sb.Append(", SslCertThumbprint=\"").Append(_sslCertThumbprint);
-            sb.Append("\", SslRootCaCertDN=\"").Append(_sslCaCertDN);
-            sb.Append("\", UserLanguageDefault=").Append(_userLanguageDefault);
-            sb.Append("}");
+            sb.Append("\"; EnableSubscriberInfo:").Append(_enableSubscriberInfo);
+            sb.Append("; IgnoreUserSn:").Append(_ignoreUserSn);
+            sb.Append("; IgnoreUserSnChange:").Append(_ignoreUserSnChange);
+            sb.Append("; PollResponseDelaySeconds:").Append(_pollResponseDelaySeconds);
+            sb.Append("; PollResponseIntervalSeconds:").Append(_pollResponseIntervalSeconds);
+            sb.Append("; RequestTimeOutSeconds:").Append(_requestTimeOutSeconds);
+            sb.Append("; SeedApTransId:\"").Append(_seedApTransId);
+            sb.Append("\"; ServiceUrlPrefix=\"").Append(_serviceUrlPrefix);
+            sb.Append("\"; SrvSideValidation:").Append(_srvSideValidation);
+            sb.Append("; SslKeystore:").Append(_sslKeyStore);
+            sb.Append("; SslCertThumbprint:\"").Append(_sslCertThumbprint);
+            sb.Append("\"; SslRootCaCertDN:\"").Append(_sslCaCertDN);
+            sb.Append("\"; UserLanguageDefault:\"").Append(_userLanguageDefault);
+            sb.Append("\"}");
             return sb.ToString();
 
 
