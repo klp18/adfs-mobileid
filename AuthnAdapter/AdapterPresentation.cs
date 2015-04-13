@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Diagnostics;
 using Microsoft.IdentityServer.Web.Authentication.External;
 
 namespace MobileId.Adfs
 {
     class AdapterPresentation : IAdapterPresentation, IAdapterPresentationForm
     {
+        private static TraceSource logger = new TraceSource("MobileId.Adfs.AuthnAdapter");
         private AuthView viewId;        // determines which message should be should
         private string param;           // additional parameter
         private int intParam;           // additional parameter
@@ -47,6 +49,29 @@ namespace MobileId.Adfs
             return "Login with Mobile ID";
         }
 
+        private string _buildErrorMessage(int lcid)
+        {
+            string s;
+            //s = (this.rspStatus != null)
+            //    ? this.rspStatus.Code + " (" + this.rspStatus.Message + ")</p><p>" + this.param
+            //    : this.param;
+            if (this.rspStatus != null)
+            {
+                s = this.rspStatus.GetDisplayMessage(lcid);
+                if (string.IsNullOrEmpty(s))
+                {
+                    s = adfsConfig.ShowDebugMsg
+                        ? this.rspStatus.Code + " (" + this.rspStatus.Message + ")</p><p>" + this.param
+                        : ServiceStatus.GetDefaultErrorMessage(lcid);
+                }
+            }
+            else
+            {
+                s = this.param;
+            };
+            return s;
+        }
+
         private const string loginFormCommonHtml = @"<form method=""post"" id=""midLoginForm""><input id=""context"" type=""hidden"" name=""Context"" value=""%Context%""/>";
         // The next string is documented as a required field in MSDN, but provokes "duplicated authMethod field" server error response in ADFS 3.5.
         // <input id=""authMethod"" type=""hidden"" name=""AuthMethod"" value=""%AuthMethod%""/>"  
@@ -75,9 +100,7 @@ window.setTimeout(function continueMobileIdAuth() {document.getElementById('midC
 </script>";
 
                 case AuthView.AuthError:
-                    s = (this.rspStatus != null)
-                        ? this.rspStatus.Code + " (" + this.rspStatus.Message + ")</p><p>" + this.param
-                        : this.param;
+                    s = _buildErrorMessage(lcid);
                     return loginFormCommonHtml 
 + @"<input name=""" + (this.adfsConfig.SsoOnCancel ? "Single" : "Local") + @"SignOut"" type=""hidden"" checked=""checked"" value=""Sign Out""/>
 <div class=""submitMargin""><p>" + s + @"</p></div>
@@ -102,9 +125,7 @@ document.getElementById('midSignOutButton').click();
 </script>
 ";
                 case AuthView.RetryOrCancel:
-                    s = (this.rspStatus != null)
-                        ? this.rspStatus.Code + " (" + this.rspStatus.Message + ")</p><p>" + this.param
-                        : this.param;
+                    s = _buildErrorMessage(lcid);
                     ret = @"<script>
 function onClickMidRetry() {document.getElementById('midHiddenSignOut').disabled=true;}
 </script>

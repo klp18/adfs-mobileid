@@ -11,6 +11,7 @@ namespace MobileId
     // -1XX: informational
     // 
     // 0: reserved
+    // -99 .. 99: avoid (its string representation has 1-2 chars, which can lead to unnecessary extra work)
     //
     // > 0: server status code (as is as received by client). Names are in upper case and match the Reason element in SOAP response.
     // 100-900: ETSI official status code

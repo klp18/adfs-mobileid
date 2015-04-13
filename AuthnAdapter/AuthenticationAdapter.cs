@@ -13,7 +13,6 @@ namespace MobileId.Adfs
     public class AuthenticationAdapter : IAuthenticationAdapter
     {
         private static TraceSource logger = new TraceSource("MobileId.Adfs.AuthnAdapter");
-        private static string version = "1.05"; // TODO: replace it with the version of assembly & displayed version
         private readonly Claim[] ClaimsHwToken =  new Claim[] { 
           new Claim(
             "http://schemas.microsoft.com/ws/2008/06/identity/claims/authenticationmethod",
@@ -34,6 +33,7 @@ namespace MobileId.Adfs
         // objects re-used among authentication "sessions"
         private WebClientConfig cfgMid = null;
         private AdfsConfig cfgAdfs = null;
+        private System.Resources.ResourceManager resMgr = null;
         private IAuthentication _webClient = null;
 
         // statistics, also used for recycle_webClient
@@ -283,7 +283,7 @@ namespace MobileId.Adfs
             ctx.Data.Add(SESSBEGIN, DateTime.UtcNow.Ticks/10000);
             AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */);
             ctx.Data.Add(SESSTRIES, 1);
-            string logMsg = "svcStatus:" + rsp.Status.Code + ", mssTransId:\"" + rsp.MsspTransId + "\", state:";
+            string logMsg = "svcStatus:" + (int) rsp.Status.Code + ", mssTransId:\"" + rsp.MsspTransId + "\", state:";
 
             switch (rsp.Status.Code)
             {
@@ -307,12 +307,23 @@ namespace MobileId.Adfs
                     // TODO: audit
                     // return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs.SsoOnCancel);
                     return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs);
+                case ServiceStatusCode.EXPIRED_TRANSACTION: // reserved mobileid can return this status
+                case ServiceStatusCode.PB_SIGNATURE_PROCESS:
+                    ctx.Data.Add(STATE, 5);
+                    logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "5");
+                    return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp.Status, (string)rsp.Detail);
                 default:
                     ctx.Data.Add(STATE, 2);
                     logger.TraceEvent((rsp.Status.Color == ServiceStatusColor.Yellow ? TraceEventType.Warning : TraceEventType.Error),
                         0, logMsg + "2, errMsg:\"" + rsp.Status.Message + "\", errDetail:\"" + rsp.Detail + "\"");
                     // TODO: audit
-                    return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp.Status, (string)rsp.Detail);    // TODO: elaborate rsp.Detail, e.g. user guidance url
+                    string s = rsp.Status.GetDisplayMessage(ctx.Lcid);
+                    if (String.IsNullOrEmpty(s)) {
+                        logger.TraceEvent(TraceEventType.Warning, 0, "resource undef for {mssCode:" + (int) rsp.Status.Code + ", lcid:" + ctx.Lcid + "}");
+                        s = (string)rsp.Detail;
+                    };
+                    // TODO: elaborate rsp.Detail, e.g. user guidance url
+                    return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp.Status, (string)rsp.Detail);
             }
         }
 
@@ -326,7 +337,7 @@ namespace MobileId.Adfs
         public void OnAuthenticationPipelineLoad(IAuthenticationMethodConfigData configData)
         {
             logger.TraceEvent(TraceEventType.Verbose, 0, "OnAuthenticationPipelineLoad(verAdapter={0}, obj={1})",
-                version, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this));
+                AuthenticationAdapterMetadata.VERSION, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this));
 
             if (configData.Data != null)
             {
@@ -485,7 +496,7 @@ namespace MobileId.Adfs
                             return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs);
                         default:
                             ctx.Data[STATE] = 12;
-                            logger.TraceEvent(TraceEventType.Error, 0, "TECH_ERROR: " + logInfo + ", state:" + ctx.Data[STATE] + ", srvStatusCode:" + rsp.Status.Code 
+                            logger.TraceEvent(TraceEventType.Error, 0, "TECH_ERROR: " + logInfo + ", state:" + ctx.Data[STATE] + ", srvStatusCode:" + (int) rsp.Status.Code 
                                 + ", srvStatusMsg:\"" + rsp.Status.Message + "\", srvStatusDetail:\"" + (string) rsp.Detail + "\"");
                             return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp.Status, (string) rsp.Detail);
                     }
@@ -501,6 +512,8 @@ namespace MobileId.Adfs
                 switch (state)
                 {
                     case 13:
+                    case 5:
+                    case 35:
                         {   // check session age and number of retries
                             int ageSeconds = (int)((DateTime.UtcNow.Ticks / 10000 - (long) ctx.Data[SESSBEGIN]) / 1000);
                             if (ageSeconds >= cfgAdfs.SessionTimeoutSeconds) {
@@ -523,7 +536,7 @@ namespace MobileId.Adfs
                         ctx.Data[AUTHBEGIN] = DateTime.UtcNow.Ticks/10000;
                         AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */);
                         ctx.Data[SESSTRIES] = (int) ctx.Data[SESSTRIES] + 1;
-                        string logMsg = "svcStatus:" + rsp.Status.Code + ", mssTransId:\"" + rsp.MsspTransId + "\", state:";
+                        string logMsg = "svcStatus:" + (int) rsp.Status.Code + ", mssTransId:\"" + rsp.MsspTransId + "\", state:";
 
                         switch (rsp.Status.Code)
                         {
@@ -546,6 +559,12 @@ namespace MobileId.Adfs
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
                                 // TODO: audit
                                 return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs);
+                            case ServiceStatusCode.EXPIRED_TRANSACTION:
+                            case ServiceStatusCode.PB_SIGNATURE_PROCESS:
+                                ctx.Data[STATE] = 35;
+                                logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
+                                // TODO: audit
+                                return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp.Status, (string) rsp.Detail);
                             default:
                                 ctx.Data[STATE] = 32;
                                 logger.TraceEvent((rsp.Status.Color == ServiceStatusColor.Yellow ? TraceEventType.Warning : TraceEventType.Error),

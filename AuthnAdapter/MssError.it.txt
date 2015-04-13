@@ -1,0 +1,59 @@
+﻿# Translated from MssError.txt 
+#
+# Notation:
+# mss_xyz = english original text
+# [S] = translatation in simplesaml implementation (if it is identical with the implemention here, the value is obmitted)
+# 
+
+# default error message
+#mss_000 = Mobile ID can not be used at this time. Please try again. If the error persists, contact  your Mobile Network Operator Support Hotline.
+# [S] Dovuto guasto del sistema l'identificazione del cellulare non può essere verificata. Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>
+mss_000 = Dovuto guasto del sistema l'identificazione del cellulare non può essere verificata. Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti il tuo operatore di telefonia mobile.
+
+#mss_101 = The mobile number is invalid.
+# [S]
+mss_101 = Il numero mobile è invalido.
+
+#mss_105 = To be able to use Mobile ID, it has to be ordered and activated first. Please visit the Mobile ID Portal of your Mobile Network Operator (#PortalUrl#).
+# [S] Mobile ID non è stato ancora ordinato o non è attivato per questo numero di telefono. Per attivare Mobile ID consulti il portale Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>.
+mss_105 = Mobile ID non è stato ancora ordinato o non è attivato per questo numero di telefono. Per attivare Mobile ID consulti il portale il tuo operatore di telefonia mobile.
+
+#mss_208 = Transaction Expiry date has been reached or Time out has elapsed. If the error persists, contact your Mobile Network Operator Support Hotline.
+# [S] La data di scadenza di transazione è stata raggiunta o il tempo fuori è trascorso. Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>
+mss_208 = La data di scadenza di transazione è stata raggiunta o il tempo fuori è trascorso. Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti il portale il tuo operatore di telefonia mobile.
+
+#mss_209 = The service has not succeeded to contact your mobile equipment. (Bad connection...). Please try again. If the error persists, contact your Mobile Network Operator Support Hotline.
+# [S] Il servizio non è riuscito per contattare la strumentazione mobile dell'utilizzatore finale. (Connessione scadente…). Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>
+mss_209 = Il servizio non è riuscito per contattare la strumentazione mobile dell'utilizzatore finale. (Connessione scadente…). Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti il tuo operatore di telefonia mobile.
+
+#mss_401 = You have canceled by the request. To complete the request, you have to accept and confirm the request with the Mobile ID PIN. Additional information is available at your Mobile Network Operator Support Hotline.
+# [S] La richiesta é stata cancellata dal utilizzatore. Per completare la procedura, l'utilizzatore deve accettare la richiesta e digitare il suo codice PIN Mobile ID. Per ulteriori informazioni consulti il portale Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>
+mss_401 = La richiesta é stata cancellata dal utilizzatore. Per completare la procedura, l'utilizzatore deve accettare la richiesta e digitare il suo codice PIN Mobile ID. Per ulteriori informazioni consulti il tuo operatore di telefonia mobile.
+
+#mss_402 = The Mobile ID PIN is blocked. A new activation is required. Please visit the Mobile ID Portal of your Mobile Network Operator and follow the PIN forgotten link (#PortalUrl#).
+# [S] Il vostro codice PIN Mobile ID é bloccato. Consulti il portale Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a> per ripristinare il PIN.
+mss_402 = Il vostro codice PIN Mobile ID é bloccato. Consulti il portale il tuo operatore di telefonia mobile (#PortalUrl#) per ripristinare il PIN.
+
+#mss_403 = Your mobile subscription is blocked. To be able to use Mobile ID again, please contact your Mobile Network Operator Support Hotline and reactivate your number.
+# [S] 
+mss_403 = Il vostro numero di telefonia mobile é bloccato. Per poter di nuovo utilizzare Mobilie ID, dovete sbloccare il numero mobile.
+
+#mss_404 = The subscriber number is not yet activated for Mobile ID. An activation is required. Please visit the Mobile ID Portal of your Mobile Network Operator (#PortalUrl#).
+# [S] Il vostro numero di telefonia mobile non é abilitato per Mobile ID. Per attivare Mobile ID consulti il portale Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>.
+mss_404 = Il vostro numero di telefonia mobile non é abilitato per Mobile ID. Per attivare Mobile ID consulti il portale il tuo operatore di telefonia mobile (#PortalUrl#).
+
+#mss_406 = Error on your mobile equipment while confirming the request. Probably an other signature request is already in progress. Please try again. If the error persists, contact your Mobile Network Operator Support Hotline.
+# [S] Errore causato dall'apparecchio mobile durante la conferma della richiesta. Probabilmente un altra richiesta di firma è già in corso. Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>
+mss_406 = Errore causato dall'apparecchio mobile durante la conferma della richiesta. Probabilmente un altra richiesta di firma è già in corso. Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti il tuo operatore di telefonia mobile.
+
+#mss_422 = Mobile ID has not been activated for this subscriber number. An activation is required. Please visit the Mobile ID Portal of your Mobile Network Operator (#PortalUrl#).
+# [S] Il vostro numero di telefonia mobile non é abilitato per Mobile ID. Per attivare Mobile ID consulti il portale Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>.
+mss_422 = Il vostro numero di telefonia mobile non é abilitato per Mobile ID. Per attivare Mobile ID consulti il portale il tuo operatore di telefonia mobile (#PortalUrl#).
+
+#mss_501 = Verification error with the confirmation. To be able to use Mobile ID again, it has to be activated again. Please visit the Mobile ID Portal of your Mobile Network Operator (#PortalUrl#).
+# [S] Errore durante la conferma. Per riattivare Mobile ID consulti il portale Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>.
+mss_501 = Errore durante la conferma. Per riattivare Mobile ID consulti il portale il tuo operatore di telefonia mobile (#PortalUrl#).
+
+#mss_503 = Verification error with the confirmation. Please try again. If the error persists, contact your Mobile Network Operator Support Hotline.
+# [S] Errore durante la conferma. Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti Swisscom <a href='http://swisscom.com/mobileid' target='_blank'>http://swisscom.com/mobileid</a>
+mss_503 = Errore durante la conferma. Riprovi di nuovo. Nel caso del ripetersi dell'errore contatti il tuo operatore di telefonia mobile.

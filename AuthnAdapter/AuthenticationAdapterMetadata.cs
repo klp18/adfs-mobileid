@@ -10,11 +10,12 @@ namespace MobileId.Adfs
 {
     class AuthenticationAdapterMetadata : IAuthenticationAdapterMetadata
     {
+        public static readonly string VERSION = "1.0";
 
         // Returns the name of the provider that will be shown in the AD FS management UI (not visible to end users)
         public string AdminName
         {
-            get { return "Mobile ID Authentication"; }
+            get { return "Mobile ID Authentication v" + VERSION; }
         }
 
         // Returns an array of strings containing URIs indicating the set of authentication methods implemented by the adapter 
@@ -51,10 +52,10 @@ namespace MobileId.Adfs
             get
             {
                 Dictionary<int, string> result = new Dictionary<int, string>();
-                result.Add(new CultureInfo("en").LCID, "Mobile ID Authentication Adapter");
-                result.Add(new CultureInfo("de").LCID, "Mobile ID Authentication Adapter");
-                result.Add(new CultureInfo("fr").LCID, "Mobile ID Authentication Adapter");
-                result.Add(new CultureInfo("it").LCID, "Mobile ID Authentication Adapter");
+                result.Add(new CultureInfo("en").LCID, "Mobile ID Authentication Adapter v" + VERSION);
+                result.Add(new CultureInfo("de").LCID, "Mobile ID Authentication Adapter v" + VERSION);
+                result.Add(new CultureInfo("fr").LCID, "Mobile ID Authentication Adapter v" + VERSION);
+                result.Add(new CultureInfo("it").LCID, "Mobile ID Authentication Adapter v" + VERSION);
                 return result;
             }
         }
@@ -67,10 +68,10 @@ namespace MobileId.Adfs
             get
             {
                 Dictionary<int, string> result = new Dictionary<int, string>();
-                result.Add(new CultureInfo("en").LCID, "Mobile ID Authentication Adapter");
-                result.Add(new CultureInfo("de").LCID, "Mobile ID Authentication Adapter");
-                result.Add(new CultureInfo("fr").LCID, "Mobile ID Authentication Adapter");
-                result.Add(new CultureInfo("it").LCID, "Mobile ID Authentication Adapter");
+                result.Add(new CultureInfo("en").LCID, "Mobile ID Authentication Adapter v" + VERSION);
+                result.Add(new CultureInfo("de").LCID, "Mobile ID Authentication Adapter v" + VERSION);
+                result.Add(new CultureInfo("fr").LCID, "Mobile ID Authentication Adapter v" + VERSION);
+                result.Add(new CultureInfo("it").LCID, "Mobile ID Authentication Adapter v" + VERSION);
                 return result;
             }
         }

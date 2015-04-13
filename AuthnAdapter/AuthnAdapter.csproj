@@ -72,6 +72,12 @@
   <ItemGroup>
     <None Include="README.md" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="MssError.de.resx" />
+    <EmbeddedResource Include="MssError.fr.resx" />
+    <EmbeddedResource Include="MssError.it.resx" />
+    <EmbeddedResource Include="MssError.resx" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>@echo copy /Y $(TargetPath) $(ProjectDir)..\binaries\$(TargetFileName)
