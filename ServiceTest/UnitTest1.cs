@@ -61,7 +61,7 @@ namespace ServiceTest
         public void T02_AuthRequestDto_ToString()
         {
             AuthRequestDto dto = new AuthRequestDto();
-            Assert.AreEqual("{ApId:null, Instant:null, MsgToBeSigned:null, PhoneNumber:null, TimeOut:80, TransId:null, TransIdPrefix:\"AP.TEST.\", SrvSideValidation:False, UserLanguage:en}", dto.ToString(), "ToString(empty_dto)");
+            Assert.AreEqual("{ApId:null, Instant:null, MsgToBeSigned:null, PhoneNumber:null, TimeOut:80, TransId:null, TransIdPrefix:\"\", SrvSideValidation:False, UserLanguage:en}", dto.ToString(), "ToString(empty_dto)");
 
             dto.ApId = "http://changeme.swisscom.ch";
             dto.PhoneNumber = "+41791234567";
@@ -69,7 +69,7 @@ namespace ServiceTest
 #if DEBUG
             Console.WriteLine("dto.Length=" + dto.ToString().Length);
 #endif
-            Assert.AreEqual("{ApId:\"http://changeme.swisscom.ch\", Instant:null, MsgToBeSigned:\"Hello, Mobile ID\", PhoneNumber:\"+41791234567\", TimeOut:80, TransId:null, TransIdPrefix:\"AP.TEST.\", SrvSideValidation:False, UserLanguage:en}", dto.ToString(), "ToString(minimal_valid_dto)");
+            Assert.AreEqual("{ApId:\"http://changeme.swisscom.ch\", Instant:null, MsgToBeSigned:\"Hello, Mobile ID\", PhoneNumber:\"+41791234567\", TimeOut:80, TransId:null, TransIdPrefix:\"\", SrvSideValidation:False, UserLanguage:en}", dto.ToString(), "ToString(minimal_valid_dto)");
         }
 
         [TestMethod]
@@ -122,13 +122,13 @@ namespace ServiceTest
             Assert.IsTrue(s.IndexOf("Mobile ID can not be used") >= 0, "en");
 
             s = ServiceStatus.GetDefaultErrorMessage(new System.Globalization.CultureInfo("fr").LCID);
-            Assert.IsTrue(s.IndexOf("Pour de raisons techniques sur le système ") >= 0, "fr");
+            Assert.IsTrue(s.IndexOf("Mobile ID ne peut actuellement pas ") >= 0, "fr");
 
             s = ServiceStatus.GetDefaultErrorMessage(new System.Globalization.CultureInfo("de").LCID);
             Assert.IsTrue(s.IndexOf("Mobile ID kann zurzeit nicht genutzt werden") >= 0, "de");
 
             s = ServiceStatus.GetDefaultErrorMessage(new System.Globalization.CultureInfo("it").LCID);
-            Assert.IsTrue(s.IndexOf("Dovuto guasto del sistema l'identificazione del cellulare") >= 0, "it");
+            Assert.IsTrue(s.IndexOf("Mobile ID attualmente non può essere utilizzato") >= 0, "it");
 
         }
         

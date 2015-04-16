@@ -6,7 +6,9 @@ using System.DirectoryServices;
 using System.Net;
 using System.Security.Claims;
 using System.Text;
-using MobileId;
+using System.Resources;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace MobileId.Adfs
 {
@@ -18,6 +20,7 @@ namespace MobileId.Adfs
             "http://schemas.microsoft.com/ws/2008/06/identity/claims/authenticationmethod",
             "http://schemas.microsoft.com/ws/2008/06/identity/authenticationmethod/hardwaretoken")
         };
+        static ResourceManager resMgr = new ResourceManager("MobileId.Adfs.WebUI", typeof(AuthenticationAdapter).Assembly);
 
         // keys for data to be transferred via Context
         private const string MSISDN = "msisdn";  // Mobile ID Number to place the signature request
@@ -30,10 +33,13 @@ namespace MobileId.Adfs
         private const string SESSBEGIN = "sb"; // timestamp when session begin (i.e. sending first MSS_SignatureReq
         private const string SESSTRIES = "st"; // number of sent MSS_SignatureReq in the session
 
+        // keys for resource
+        private const string RES_LANG = "AppletLanguage";
+        private const string RES_LOGINPROMPT = "MobileLoginPromt";
+
         // objects re-used among authentication "sessions"
         private WebClientConfig cfgMid = null;
         private AdfsConfig cfgAdfs = null;
-        private System.Resources.ResourceManager resMgr = null;
         private IAuthentication _webClient = null;
 
         // statistics, also used for recycle_webClient
@@ -42,8 +48,7 @@ namespace MobileId.Adfs
         // load dependent assemblies from embedded resource
         // private readonly static LoadDependencies _loadDependencies = new LoadDependencies();
 
-        // EventLog
-        // TODO: Should go into "Applications and Services Logs / AD FS / MobileID (or the existing Admin in AD FS)
+        // TODO: use ETW
         private const string EVENTLOGSource = "AD FS MobileID";
         private const string EVENTLOGGroup = "Application";
 
@@ -67,7 +72,7 @@ namespace MobileId.Adfs
         {
             if (ctx == null)
                 return "null";
-            StringBuilder sb = new StringBuilder(); // TODO: update on change
+            StringBuilder sb = new StringBuilder(256); // TODO: update on change
             sb.Append("{Data: {");
             foreach (var entry in ctx.Data)
                 sb.Append("\"").Append(entry.Key).Append("\":\"").Append(entry.Value).Append("\", ");
@@ -82,7 +87,7 @@ namespace MobileId.Adfs
         private string _str(Claim c)
         {
             if (c == null) return "null";
-            StringBuilder sb = new StringBuilder(); // TODO: update on change
+            StringBuilder sb = new StringBuilder(196); // TODO: update on change
             sb.Append("{");
             ClaimsIdentity subj = c.Subject;
             if (subj == null) {
@@ -113,7 +118,7 @@ namespace MobileId.Adfs
         private string _str(IDictionary<string,string> dict)
         {
             if (dict == null) return "Null";
-            StringBuilder sb = new StringBuilder(); // TODO: update on change
+            StringBuilder sb = new StringBuilder();
             sb.Append("{");
             foreach (KeyValuePair<string, string> e in dict)
             {
@@ -126,7 +131,7 @@ namespace MobileId.Adfs
         private string _str(System.Collections.Specialized.NameValueCollection c)
         {
             if (c == null) return "null";
-            StringBuilder sb = new StringBuilder(); // TODO: update on change
+            StringBuilder sb = new StringBuilder();
             sb.Append("{");
             foreach (string k in c) 
                 sb.Append(k).Append(": \"").Append(c[k]).Append("\",");
@@ -136,15 +141,9 @@ namespace MobileId.Adfs
 
         private string _str(HttpListenerRequest req) {
             if (req == null) return "null";
-            StringBuilder sb = new StringBuilder(); // TODO: update on change
+            StringBuilder sb = new StringBuilder(64); // TODO: update on change
             sb.Append("{RawUrl:\"").Append(req.RawUrl).Append("\"; ");
             sb.Append("QueryString:").Append(_str(req.QueryString)).Append("; ");
-            //CookieCollection cookies = req.Cookies;
-            //if (cookies == null) {
-            //    sb.Append("Cookies:null; ");
-            //} else {
-            //    sb.Append("Cookies:\"").Append(cookies).Append("\"; ");  // TODO
-            //};
             sb.Append("}");
             return sb.ToString();
 
@@ -153,7 +152,7 @@ namespace MobileId.Adfs
         private string _str(IProofData o)
         {
             if (o == null) return "null";
-            StringBuilder sb = new StringBuilder(); // TODO: update on change
+            StringBuilder sb = new StringBuilder(32); // TODO: update on change
             sb.Append("{");
             foreach (KeyValuePair<string, object> pair in o.Properties)
                 sb.Append(pair.Key).Append(":\"").Append(pair.Value).Append("\"; ");
@@ -164,7 +163,7 @@ namespace MobileId.Adfs
         private string _str(System.IO.Stream s)
         {
             if (s == null) return "null";
-            StringBuilder sb = new StringBuilder(); // TODO: update on change
+            StringBuilder sb = new StringBuilder(64); // TODO: update on change
             sb.Append("{canRead: ").Append(s.CanRead);
             sb.Append("; canWrite: ").Append(s.CanWrite);
             if (s.CanSeek) {
@@ -176,16 +175,18 @@ namespace MobileId.Adfs
             return sb.ToString();
         }
 
-        private string buildMobileIdLoginPrompt(IAuthenticationContext ctx)
+        // look up the userLang-specific LoginPrompt string from (adfsConfig || resource), expand placeholders, and returns the result
+        private string _buildMobileIdLoginPrompt(UserLanguage userLanguage, CultureInfo culture, string transId)
         {
-            string nonce = MobileId.Util.BuildRandomBase64Chars(cfgAdfs.LoginNonceLength);
-            //var rgx = new System.Text.RegularExpressions.Regex(@"(?!\\)\{0\}");
-            //string s = cfgAdfs.DefaultLoginPrompt;  // TODO: I18N
-            //s = rgx.Replace(s, nonce);   // replace {0} by 5-char alphanum nonce
-            return string.Format(cfgAdfs.DefaultLoginPrompt, nonce);
+            string prefix = cfgMid.DtbsPrefix;
+            string prompt = cfgAdfs.GetLoginPrompt(userLanguage);
+            if (prompt == null)
+                prompt = resMgr.GetString(RES_LOGINPROMPT, culture);
+            prompt = new Regex("#TransId#",RegexOptions.IgnoreCase).Replace(prompt, transId);
+            return prefix + prompt;
         }
 
-        // Check if adapter available for the user
+        // Check if mobile id authenicator is available for the user
         public bool IsAvailableForUser(Claim identityClaim, IAuthenticationContext ctx)
         {
             logger.TraceEvent(TraceEventType.Verbose, 0, "IsAvailableForUser(claim=" + _str(identityClaim) + ", ctx=" + _str(ctx) + ")");
@@ -208,15 +209,11 @@ namespace MobileId.Adfs
                     SearchResult result = ds.FindOne();
                     if (result != null)
                     {
-                        // Get the properties
                         ResultPropertyCollection propertyCollection = result.Properties;
-                        // Process all properties
                         foreach (string thisProperty in propertyCollection.PropertyNames)
                         {
-                            // Process all property values
                             foreach (string propertyValue in propertyCollection[thisProperty])
                             {
-                                // Get the proper value (the attribute may change it's name, better to compare in lowercase)
                                 if (thisProperty.ToLower(System.Globalization.CultureInfo.InvariantCulture) == cfgAdfs.AdAttrMobile)
                                 {
                                     msisdn = propertyValue.ToString();
@@ -256,11 +253,13 @@ namespace MobileId.Adfs
             }
             if (String.IsNullOrEmpty(snOfDN))
             {
-                // we let Mobile ID client decide how to proceed
+                // TODO: implement strategy for SN
                 logger.TraceEvent(TraceEventType.Information, 0, "Serial Number not found for " + upn);
             }
 
-            // store "session"-scope information to ctx
+            // store "session"-scope information to ctx. The life time of a "session" is identical with the lifetime of ctx.
+            // It seems to begin with a BeginAuthentication(...), continue with 0+ TryEndAuthentication(...), 
+            // ends when (a) TryEndAuthentication(...) returns null and claim, or (b) on browser closure, or (c) on timeout.
             ctx.Data.Add(USERUPN, upn);
             return true;
         }
@@ -269,15 +268,14 @@ namespace MobileId.Adfs
         public IAdapterPresentation BeginAuthentication(Claim identityClaim, HttpListenerRequest reqHttp, IAuthenticationContext ctx)
         {
             logger.TraceEvent(TraceEventType.Verbose, 0, "BeginAuthentication(claim=" + _str(identityClaim) + ", req=" + _str(reqHttp) + ", ctx=" + _str(ctx) + ")");
-
-            // int userLang = ctx.Lcid;
-            // TODO: language dependent string
-            // TODO: display nonce, if enabled, in web browser.
+            CultureInfo culture = new CultureInfo(ctx.Lcid);
+            string uiTrxId = MobileId.Util.BuildRandomBase64Chars(cfgAdfs.LoginNonceLength);
 
             // Start the asynchrous login
             AuthRequestDto req = new AuthRequestDto();
             req.PhoneNumber = (string) ctx.Data[MSISDN];
-            req.DataToBeSigned = buildMobileIdLoginPrompt(ctx);
+            req.UserLanguage = (UserLanguage)Enum.Parse(typeof(UserLanguage), resMgr.GetString(RES_LANG, culture));
+            req.DataToBeSigned = _buildMobileIdLoginPrompt(req.UserLanguage, culture, uiTrxId);
             req.TimeOut = cfgMid.RequestTimeOutSeconds;
             ctx.Data.Add(AUTHBEGIN, DateTime.UtcNow.Ticks/10000);
             ctx.Data.Add(SESSBEGIN, DateTime.UtcNow.Ticks/10000);
@@ -300,18 +298,17 @@ namespace MobileId.Adfs
                     ctx.Data.Add(DTBS, req.DataToBeSigned);
                     logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "1");
                     // TODO: audit
-                    return new AdapterPresentation(AuthView.SignRequestSent, cfgAdfs, req.PhoneNumber, cfgMid.PollResponseDelaySeconds*1000);
+                    return new AdapterPresentation(AuthView.SignRequestSent, cfgAdfs, req.PhoneNumber, uiTrxId, cfgMid.PollResponseDelaySeconds*1000);
                 case ServiceStatusCode.USER_CANCEL:
                     ctx.Data.Add(STATE, 4);
                     logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "4");
                     // TODO: audit
-                    // return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs.SsoOnCancel);
                     return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs);
-                case ServiceStatusCode.EXPIRED_TRANSACTION: // reserved mobileid can return this status
+                case ServiceStatusCode.EXPIRED_TRANSACTION: // reserved mobileid can return this status immdidately
                 case ServiceStatusCode.PB_SIGNATURE_PROCESS:
                     ctx.Data.Add(STATE, 5);
                     logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "5");
-                    return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp.Status, (string)rsp.Detail);
+                    return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                 default:
                     ctx.Data.Add(STATE, 2);
                     logger.TraceEvent((rsp.Status.Color == ServiceStatusColor.Yellow ? TraceEventType.Warning : TraceEventType.Error),
@@ -322,8 +319,7 @@ namespace MobileId.Adfs
                         logger.TraceEvent(TraceEventType.Warning, 0, "resource undef for {mssCode:" + (int) rsp.Status.Code + ", lcid:" + ctx.Lcid + "}");
                         s = (string)rsp.Detail;
                     };
-                    // TODO: elaborate rsp.Detail, e.g. user guidance url
-                    return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp.Status, (string)rsp.Detail);
+                    return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp);
             }
         }
 
@@ -377,12 +373,13 @@ namespace MobileId.Adfs
                 EventLog.CreateEventSource("MobileId.Adfs", "Application");
         }
 
-        // Called whenever the authentication provider is unloaded fro the AD FS pipeline.
+        // Called whenever the authentication provider is unloaded from the AD FS pipeline.
         public void OnAuthenticationPipelineUnload()
         {
             logger.TraceEvent(TraceEventType.Verbose, 0, "OnAuthenticationPipelineUnload(obj={0})",
                 System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this));
             EventLog.WriteEntry(EVENTLOGSource, "Adapter unloaded", EventLogEntryType.Information, 901);
+            _webClient = null; // dispose _webClient
         }
 
         // Handle the errors during the authentication process during BeginAuthentication or TryEndAuthentication
@@ -398,13 +395,21 @@ namespace MobileId.Adfs
         {
             string formAction,upn,msspTransId,logInfo;
             int state;
-            try {
-                formAction = (string)proofData.Properties["Action"];
-            }
-            catch (KeyNotFoundException) { // form may be tampered by end user
-                formAction = null;
-            }
+            if (proofData.Properties.ContainsKey("Retry")) {
+                formAction = "Retry";
+            } else {
+                try {
+                    formAction = (string)proofData.Properties["Action"];
+                } catch (KeyNotFoundException) {
+                    formAction = null;
+                }
+            };
+            //if (formAction == null && proofData.Properties.ContainsKey("SignOut")) { 
+            //    // if user modifies URL manually during a session, the Cancel action is not captured by ADFS but leaks to this method
+            //    formAction = "SignOut";
+            //};
             logger.TraceEvent(TraceEventType.Verbose, 0, "TryEndAuthentication(act:" + formAction + ", ctx:" + _str(ctx) + ", prf:" + _str(proofData) + ", req:" + _str(request));
+            CultureInfo culture = new CultureInfo(ctx.Lcid);
 
             upn = (string)ctx.Data[USERUPN];
             state = (int) ctx.Data[STATE];
@@ -420,13 +425,7 @@ namespace MobileId.Adfs
             logInfo = "upn:\"" + upn + "\", msspTransId:\"" + msspTransId + "\"";
 
             claims = null;
-            if (formAction == "Cancel")
-            {
-                logger.TraceEvent(TraceEventType.Information, 0, "WEB_CANCEL: " + logInfo + ", state:" + state);
-                // TODO: Audit
-                return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs);
-            }
-            else if (formAction == "Continue")
+            if (formAction == "Continue")
             {
                 switch (state)
                 {
@@ -441,7 +440,6 @@ namespace MobileId.Adfs
                         break;
                     default:
                         logger.TraceEvent(TraceEventType.Error, 0, "BAD_STATE: " + logInfo + ", state:" + state);
-                        // TODO: optionally suppress verbose error message
                         return new AdapterPresentation(AuthView.AuthError, cfgAdfs, "action:\"Conitnue\"; state:" + state);
                 }
 
@@ -453,7 +451,7 @@ namespace MobileId.Adfs
                     // TODO: Audit
                     return
                         ((int)ctx.Data[SESSTRIES] < cfgAdfs.SessionMaxTries) ?
-                        new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, "Timeout.") :
+                        new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, "Timeout.") : // TODO: construct new ErrorCode for easier I18N
                         new AdapterPresentation(AuthView.AuthError, cfgAdfs, "Timeout.");
                 }
                 
@@ -483,12 +481,12 @@ namespace MobileId.Adfs
                             ctx.Data[STATE] = 13;
                             logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_TIMEOUT_MID: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
                             // TODO: Audit
-                            return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp.Status, (string) rsp.Detail);
+                            return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                         case ServiceStatusCode.PB_SIGNATURE_PROCESS:
                             ctx.Data[STATE] = 13;
                             logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_SIGN_PROCESS: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
                             // TODO: Audit
-                            return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp.Status, (string)rsp.Detail);
+                            return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                         case ServiceStatusCode.USER_CANCEL:
                             ctx.Data[STATE] = 14;
                             logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_CANCEL: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
@@ -498,7 +496,7 @@ namespace MobileId.Adfs
                             ctx.Data[STATE] = 12;
                             logger.TraceEvent(TraceEventType.Error, 0, "TECH_ERROR: " + logInfo + ", state:" + ctx.Data[STATE] + ", srvStatusCode:" + (int) rsp.Status.Code 
                                 + ", srvStatusMsg:\"" + rsp.Status.Message + "\", srvStatusDetail:\"" + (string) rsp.Detail + "\"");
-                            return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp.Status, (string) rsp.Detail);
+                            return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp);
                     }
                 }; // for-loop
 
@@ -531,7 +529,9 @@ namespace MobileId.Adfs
                         // start a new asynchronous RequestSignature
                         AuthRequestDto req = new AuthRequestDto();
                         req.PhoneNumber = (string) ctx.Data[MSISDN];
-                        req.DataToBeSigned = buildMobileIdLoginPrompt(ctx);
+                        req.UserLanguage = (UserLanguage)Enum.Parse(typeof(UserLanguage), resMgr.GetString(RES_LANG, culture));
+                        string uiTrxId = Util.BuildRandomBase64Chars(cfgAdfs.LoginNonceLength);
+                        req.DataToBeSigned = _buildMobileIdLoginPrompt(req.UserLanguage, culture, uiTrxId);
                         req.TimeOut = cfgMid.RequestTimeOutSeconds;
                         ctx.Data[AUTHBEGIN] = DateTime.UtcNow.Ticks/10000;
                         AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */);
@@ -553,7 +553,7 @@ namespace MobileId.Adfs
                                 ctx.Data[DTBS] = req.DataToBeSigned;
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
                                 // TODO: audit
-                                return new AdapterPresentation(AuthView.SignRequestSent, cfgAdfs, req.PhoneNumber, cfgMid.PollResponseDelaySeconds*1000);
+                                return new AdapterPresentation(AuthView.SignRequestSent, cfgAdfs, req.PhoneNumber, uiTrxId, cfgMid.PollResponseDelaySeconds * 1000);
                             case ServiceStatusCode.USER_CANCEL:
                                 ctx.Data[STATE] = 34;
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
@@ -564,27 +564,30 @@ namespace MobileId.Adfs
                                 ctx.Data[STATE] = 35;
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
                                 // TODO: audit
-                                return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp.Status, (string) rsp.Detail);
+                                return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                             default:
                                 ctx.Data[STATE] = 32;
                                 logger.TraceEvent((rsp.Status.Color == ServiceStatusColor.Yellow ? TraceEventType.Warning : TraceEventType.Error),
                                     0, logMsg + ctx.Data[STATE] + ", errMsg:\"" + rsp.Status.Message + "\", errDetail:\"" + rsp.Detail + "\"");
                                 // TODO: audit
-                                return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp.Status, (string)rsp.Detail);    // TODO: elaborate rsp.Detail, e.g. user guidance url
+                                return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp);
                         };
                     default:
                         logger.TraceEvent(TraceEventType.Error, 0, "BAD_STATE: " + logInfo + ", state:" + state);
-                        // TODO: optionally suppress verbose error
                         return new AdapterPresentation(AuthView.AuthError, cfgAdfs, "action:\"Retry\"; state:" + state);
                 }
             }
+            //else if (formAction == "SignOut")
+            //{
+            //    logger.TraceEvent(TraceEventType.Verbose, 0, "SIGNOUT: " + logInfo + "; state:" + state);
+            //    return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs); // could lead to endless-loop
+            //}
             else
             {
                 logger.TraceEvent(TraceEventType.Error, 0, "Unsupported formAction: " + formAction);
-                return new AdapterPresentation(AuthView.AuthError, cfgAdfs, new ServiceStatus(ServiceStatusCode.GeneralClientError), null);
+                return new AdapterPresentation(AuthView.AuthError, cfgAdfs, new AuthResponseDto(ServiceStatusCode.GeneralClientError));
             }
         }
-
     }
 
 }

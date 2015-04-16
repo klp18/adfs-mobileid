@@ -1,4 +1,5 @@
 ﻿
+using System.Collections.Generic;
 using System.Text;
 
 namespace MobileId
@@ -21,6 +22,21 @@ namespace MobileId
         public string MsspTransId { get; set; }
 
         public byte[] Signature { get; set; }
+
+        private Dictionary<AuthResponseExtension, object> _extensions = new Dictionary<AuthResponseExtension, object> { };
+
+        /// <summary>
+        /// Additional features (e.g. SubscriberInfo, UserAssistencePortalUrl)
+        /// are accessible via a Dictionary. Extensions is garanteed to be a non-null Dictionary.
+        /// If the server response contains a feature,
+        /// the value of the feature can be retrieved with AuthResponseDto.Extensions[featureName],
+        /// otherwise the key featureName is absent in the Dictionary.
+        /// </summary>
+        public Dictionary<AuthResponseExtension, object> Extensions
+        {
+            get { return _extensions;}
+            set { if (value != null) _extensions = value;}
+        }
 
         /// <summary>
         /// Mainly used to construct error response.
@@ -46,5 +62,11 @@ namespace MobileId
             return sb.ToString();
         }
 
+    }
+
+    public enum AuthResponseExtension
+    {
+        UserAssistencePortalUrl = 1,
+        SubscriberInfo = 2
     }
 }

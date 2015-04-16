@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text;
 using System.Xml;
+using System.Collections.Generic;
 
 namespace MobileId.Adfs
 {
@@ -17,6 +18,7 @@ namespace MobileId.Adfs
         bool _showDebugMsg = false;
         bool _expShowWSignOut = false;
         int _loginNonceLength = 5;
+        Dictionary<UserLanguage, string> _loginPrompt = new Dictionary<UserLanguage, string>(); // override the text in resource
 
         /// <summary>
         /// A WebClient can be re-used to send requests. If the number of requests exceed this number, 
@@ -113,11 +115,31 @@ namespace MobileId.Adfs
             set { _showDebugMsg = value; }
         }
 
+        /// <summary>
+        /// Length of the unique not-guessable string that should be included in the message sent to mobile device.
+        /// </summary>
         public int LoginNonceLength {
             get { return _loginNonceLength; }
             set { if (value > 0 && value < AuthRequestDto.MAX_UTF8_CHARS_DTBS ) _loginNonceLength = value; }
         }
-        
+
+        /// <summary>
+        /// Return the login prompt text for the specified language, excluding the language-independent prefix.
+        /// The text (and a prepended prefix) will be displayed in user's mobile device.
+        /// </summary>
+        /// <param name="language">one of the supported language</param>
+        /// <returns></returns>
+        public string GetLoginPrompt(UserLanguage language) {
+            string s;
+            return (_loginPrompt.TryGetValue(language, out s)) ? s : null;
+        }
+
+        public void SetLoginPrompt(UserLanguage language, string value) {
+            if (value != null)
+            {
+                _loginPrompt[language] = value;
+            }
+        }
 
         public static AdfsConfig CreateConfig(TextReader cfgStream)
         {
@@ -136,7 +158,7 @@ namespace MobileId.Adfs
                 String s;
                 while (xml.Read())
                 {
-                    // we process only the <mobileIdClient .../> element
+                    // we process only the <mobileIdClient .../> element and ignore everything else
                     if (xml.Name == "mobileIdAdfs")
                     {
                         cfg.AdAttrMobile = xml["AdAttrMobile"];
@@ -156,6 +178,10 @@ namespace MobileId.Adfs
                             cfg.ExpShowWSignOut = bool.Parse(s);
                         if (!String.IsNullOrWhiteSpace(s = xml["LoginNonceLength"]))
                             cfg.LoginNonceLength = int.Parse(s);
+                        foreach (UserLanguage lang in new UserLanguage[] {UserLanguage.en, 
+                            UserLanguage.de, UserLanguage.fr, UserLanguage.it}) {
+                            cfg.SetLoginPrompt(lang, xml["LoginPrompt." + lang]);
+                        };
                         // TODO: update on change
                         break;
                     }
@@ -178,7 +204,7 @@ namespace MobileId.Adfs
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder(196); // TODO: update on change
+            StringBuilder sb = new StringBuilder(320); // TODO: update on change
             // sorted alphabetically in name. No output for experimental features.
             sb.Append("{AdAttrMobile: \"").Append(_adAttrMobile);
             sb.Append("\"; AdAttrMidSerialNumber: \"").Append(_adAttrMidSerialNumber);

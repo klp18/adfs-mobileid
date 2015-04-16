@@ -178,6 +178,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             #endregion
             string rspBody = rsp.Body;
             string sCode, sReason, sDetail;
+            string sPortalUrl = null;
 
             XmlDocument doc = new XmlDocument();
             doc.XmlResolver = null;
@@ -186,7 +187,8 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             XmlNamespaceManager manager = new XmlNamespaceManager(doc.NameTable);
             manager.AddNamespace("soapenv", "http://www.w3.org/2003/05/soap-envelope");
             manager.AddNamespace("mss", "http://uri.etsi.org/TS102204/v1.1.2#");
-
+            manager.AddNamespace("ki", "http://kiuru.methics.fi/mssp");
+            manager.AddNamespace("sc1", "http://www.swisscom.ch/TS102204/ext/v1.0.0");
             string cursor = null;
             try
             {
@@ -196,6 +198,11 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 sReason = doc.SelectSingleNode("/soapenv:Envelope/soapenv:Body/soapenv:Fault/soapenv:Reason/soapenv:Text", manager).InnerText;
                 cursor = "Detail";
                 sDetail = doc.SelectSingleNode("/soapenv:Envelope/soapenv:Body/soapenv:Fault/soapenv:Detail", manager).InnerText;
+                try {
+                    cursor = "UserAssistance";
+                    sPortalUrl = doc.SelectSingleNode("/soapenv:Envelope/soapenv:Body/soapenv:Fault/soapenv:Detail/sc1:UserAssistance/sc1:PortalUrl", manager).InnerText;
+                } 
+                catch (NullReferenceException) {} // i.e. sPortalUrl = null;
             }
             catch (NullReferenceException)
             {
@@ -212,8 +219,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
 
             // SOAP Fault Subcode: check the allowed values
             ServiceStatusCode rc;
-            Regex rgx = new Regex(@"^mss:_(\d\d\d)$");
-            Match match = rgx.Match(sCode);
+            Match match = new Regex(@"^mss:_(\d\d\d)$").Match(sCode);
             if (match.Success)
             {
                 try
@@ -236,7 +242,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             }
             else
             {
-                string s = "code='" + sCode + "', reason='" + sReason + "', detail='" + sDetail + "'";
+                string s = "code='" + sCode + "', reason='" + sReason + "', detail='" + sDetail + "', portalUrl='" + sPortalUrl + "'";
                 logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service, "Illformed Fault Code: {0}\nResponse Body:\n", s, rspBody);
                 return new AuthResponseDto(ServiceStatusCode.UnsupportedStatusCode, s);
             };
@@ -246,7 +252,10 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service,
                     "SOAP Fault Reason ({0}) does not match registered Reason ({1})", sReason, rc.ToString());
 
-            return new AuthResponseDto(rc, sDetail);
+            AuthResponseDto rspDto = new AuthResponseDto(rc, sDetail);
+            if (sPortalUrl != null)
+                rspDto.Extensions[AuthResponseExtension.UserAssistencePortalUrl] = sPortalUrl;
+            return rspDto;
         }
 
         private AuthResponseDto _parseSignSync200Response(string httpRspBody, AuthRequestDto inDto)
@@ -614,7 +623,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             }
 
             // prepare connection
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls;    // TODO: make it configurable
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls;    // TODO: make TLS version configurable
             HttpWebRequest httpReq = (HttpWebRequest)WebRequest.Create(_cfg.ServiceUrlPrefix + soapPortName + "Port");
             // TODO: add HTTP proxy support
             httpReq.ClientCertificates.Add(sslClientCert);
@@ -685,7 +694,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             return new AuthResponseDto(ServiceStatusCode.CommSetupError, rspSB.Body);
         }
 
-        private AuthResponseDto _parsePoll200Response(string httpRspBody, AuthRequestDto inDto)
+        AuthResponseDto _parsePoll200Response(string httpRspBody, AuthRequestDto inDto)
         {
             #region Sample Response OUTSTANDING_TRANSACTION
             /* Sample Response 1: OUTSTANDING_TRANSACTION

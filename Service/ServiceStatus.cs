@@ -7,7 +7,7 @@ namespace MobileId
 {
     public class ServiceStatus
     {
-        static readonly string ResourceName = "MobileId.Adfs.MssError"; 
+        static readonly string ResourceName = "MobileId.MssError";
 
         // static ResourceManager resMgr = new ResourceManager(typeof(MobileId.ServiceStatus)); // search for resource name "MobileId.ServiceStatus"
         static ResourceManager resMgr = new ResourceManager(ResourceName, typeof(MobileId.ServiceStatus).Assembly);  // or Assembly.GetExecutingAssembly()

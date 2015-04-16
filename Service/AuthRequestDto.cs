@@ -19,8 +19,7 @@ namespace MobileId
         UserLanguage _userLanguage;
         int _timeout = 80;
         string _instant;
-        // TODO: change it to DtbsPrefix
-        string _transIdPrefix = "AP.TEST.";
+        string _transIdPrefix = "";
         string _transId;
         bool _srvSideValidation = false;
 
@@ -42,7 +41,7 @@ namespace MobileId
         /// <returns></returns>
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder(256); // TODO: update the length on code change (typical value: 240)
+            StringBuilder sb = new StringBuilder(256); // TODO: update the capacity on code change
             // fields are ordered alphabetically by name
             sb.Append("{ApId:").Append(Util.Str(_apId));
             sb.Append(", Instant:").Append(Util.Str(_instant));

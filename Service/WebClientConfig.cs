@@ -25,7 +25,7 @@ namespace MobileId
         StoreLocation _sslKeyStore = StoreLocation.CurrentUser;
         UserLanguage _userLanguageDefault = UserLanguage.en;
         string _serviceUrlPrefix = "https://mobileid.swisscom.com/soap/services/";
-        // string _dtbsPrefix = null;
+        string _dtbsPrefix = "";
         bool _srvSideValidation = true;
         int _requestTimeOutSeconds = 80;
         string _seedApTransId = "Some ASCII text to be used to build the unique AP_TransId in request";
@@ -35,24 +35,11 @@ namespace MobileId
         int _pollResponseDelaySeconds = 15;
         int _pollResponseIntervalSeconds = 1;
 
-        //// not used. doesn't work
-        ///// <summary>
-        ///// Build a configuration from NameValueCollection, such that from a section in app.config file.
-        ///// </summary>
-        ///// <param name="appCfg"></param>
-        //public WebClientConfig(NameValueCollection appCfg)
-        //{
-        //    Trace.Assert(appCfg != null, "appCfg is null");
-        //    // if (appCfg == null) throw new ArgumentNullException("appCfg is null");
-        //    this.ApId = appCfg["ApId"];
-        //}
-
         public static WebClientConfig CreateConfigFromFile(string fileName)
         {
             if (string.IsNullOrEmpty(fileName))
             {
                 throw new ArgumentNullException("config fileName is null or empty");
-                // TODO: construct a default filename
             }
             using (FileStream fs = File.OpenRead(fileName))
             using (TextReader tr = new StreamReader(fs))
@@ -93,7 +80,7 @@ namespace MobileId
                     {
                         // Warning: Due to input validation, the processing order of the attributes may be important.
                         cfg.ApId = xml["AP_ID"];
-                        // cfgMid.DtbsPrefix = xml["DtbsPrefix"];
+                        cfg.DtbsPrefix = xml["DtbsPrefix"];
                         if (!string.IsNullOrWhiteSpace(s = xml["RequestTimeOutSeconds"]))
                             cfg.RequestTimeOutSeconds = int.Parse(s);
                         cfg.ServiceUrlPrefix = xml["ServiceUrlPrefix"];
@@ -107,11 +94,12 @@ namespace MobileId
                         if (!string.IsNullOrEmpty(s = xml["EnableSubscriberInfo"]))
                             cfg.EnableSubscriberInfo = Boolean.Parse(s);
                         cfg.SeedApTransId = xml["SeedApTransId"];
+                        // PollResponse* must be parsed after RequestTimeOutSeconds due to input validation
                         if (!string.IsNullOrWhiteSpace(s = xml["PollResponseDelaySeconds"]))
                             cfg.PollResponseDelaySeconds = int.Parse(s);
                         if (!string.IsNullOrWhiteSpace(s = xml["PollResponseIntervalSeconds"]))
                             cfg.PollResponseIntervalSeconds = int.Parse(s);
-                        // TODO: add a rule if a new config parameter has been introduced
+                        // TODO: update on change of properties
                         
                         break;
                     }
@@ -181,10 +169,10 @@ namespace MobileId
             set { if (! string.IsNullOrEmpty(value)) _serviceUrlPrefix = value;}
         }
 
-        //public string DtbsPrefix { 
-        //    get { return _dtbsPrefix; }
-        //    set { _dtbsPrefix = value; }
-        //}
+        public string DtbsPrefix {
+            get { return _dtbsPrefix; }
+            set { if (value != null) { _dtbsPrefix = value; } }
+        }
 
         public bool SrvSideValidation { 
             get { return _srvSideValidation; }
@@ -243,7 +231,7 @@ namespace MobileId
             StringBuilder sb = new StringBuilder(512);  // TODO: update on change
             // sorted alphabetically in name
             sb.Append("{ApId: \"").Append(_apId);
-            // sb.Append(", DtbsPrefix=").Append(_dtbsPrefix);
+            sb.Append(", DtbsPrefix: \"").Append(_dtbsPrefix);
             sb.Append("\"; EnableSubscriberInfo:").Append(_enableSubscriberInfo);
             sb.Append("; IgnoreUserSn:").Append(_ignoreUserSn);
             sb.Append("; IgnoreUserSnChange:").Append(_ignoreUserSnChange);
