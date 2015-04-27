@@ -116,7 +116,7 @@ while the element `mobileIdAdfs` specifies the integration of Mobile ID with ADF
 * Element `mobileIdAdfs`:
   + `AdAttrMobile`: Attribute name of AD user object for the mobile number. The attribute should have exactly one value. Default: `mobile`.
   + `AdAttrSerialNumber`: Attribute name of AD user object for the Serial Number of Mobile ID. The attribute should have at most one value. Default: `msNPCallingStationID`
-  + `LoginPrompt.`xx (xx=`en`,`de`,`fr`,ìt`): Login message sent to the mobile phone.
+  + `LoginPrompt.`xx (xx=`en`,`de`,`fr`,`it`): Login message sent to the mobile phone.
      The value can optionally contains one place holder `#TransId#` which expands to a 5-char random string.
   + `LoginNonceLength`: Length of the random string to be included in the login prompt (see parameter `LoginPrompt.`xx). Default: 5
   + `SessionMaxTries`:  In an *Mobile ID authentication session", a user can retry the Mobile ID after an unsuccessful login. This is the maximum number of unsucessful login tries in a Mobile ID authentication session. Default: `5`.
