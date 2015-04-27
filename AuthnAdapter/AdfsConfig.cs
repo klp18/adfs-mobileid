@@ -165,7 +165,7 @@ namespace MobileId.Adfs
                         if (!String.IsNullOrWhiteSpace(s = xml["WebClientMaxRequest"]))
                           cfg.WebClientMaxRequest = ulong.Parse(s);
                         cfg.AdAttrMidSerialNumber = xml["AdAttrMidSerialNumber"];
-                        cfg.DefaultLoginPrompt = xml["DefaultLoginPrompt"];
+                        cfg.DefaultLoginPrompt = xml["DefaultLoginPrompt"]; // TODO: deprecated
                         if (!String.IsNullOrWhiteSpace(s = xml["SsoOnCancel"]))
                             cfg.SsoOnCancel = bool.Parse(xml[s]);
                         if (!String.IsNullOrWhiteSpace(s = xml["SessionTimeoutSeconds"]))
