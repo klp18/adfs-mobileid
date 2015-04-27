@@ -13,7 +13,7 @@ If you are familiar with the contents in Integration Guide, you can skip the res
 ### Runtime Environment:
 
 * Microsoft Windows Server 2012 R2
-* You have a Mobile ID Application Provider Account (`AP_ID`)
+* Mobile ID Application Provider Account (`AP_ID`)
 
 ### Build Environment:
 
@@ -27,39 +27,39 @@ If you are familiar with the contents in Integration Guide, you can skip the res
 
 ### Step 0: Installation of ADFS service
 
-This depends strongly on the purpose of the environment: development lab, integration test, highly available proudction.
-Microsoft has provided a [walkthrough guide](https://technet.microsoft.com/en-us/library/dn280939.aspx "Set up the lab environment for AD FS in Windows Server 2012 R2") for development lab.
+Refer to the Microsoft official documentation on how to install and deploy this service in your environnment.
+There is also a [walkthrough guide](https://technet.microsoft.com/en-us/library/dn280939.aspx "Set up the lab environment for AD FS in Windows Server 2012 R2") for development lab.
 
 ### Step 1: Establishment of Connectivity between ADFS server(s) and Mobile ID servers
 
 #### 1.1: IP connectivity between Mobile ID client and Mobile ID server
 
-ADFS servers can access the Mobile ID servers (*MID*) only from specific IP addresses.
-The address range is specific to an Application Provider (*AP*) and configured by the MID service during the enrollment process for the AP.
+The Mobile ID service (*MID*) can only be accessed by servers from specific IP addresses.
+The address range is specific to an Application Provider (*AP*) and configured by the MID service during the enrolment process for the AP.
 
 #### 1.2. SSL connectivity between Mobile ID client and Mobile ID server
 
 An ADFS server must establish a mutually authenticated SSL/TLS connection with a MID server before calling the MID services.
-During the enrollment process of Mobile ID Application Provider Account, you have created a SSL/TLS client certificate for 
-your Mobile ID connection. It is recommend not to re-use the existing certificate/keys of ADFS service.
-You also need the certificate of the Certificate Authority (*CA*) for the MID servers, which is located in [certs](../certs) folder.
+During the enrolment process of Mobile ID Application Provider Account, you have created a SSL/TLS client certificate for 
+your Mobile ID connection.
+You also need the certificate of the Certificate Authority (*CA*) for the MID servers, which is located in [certs](certs) folder.
 
 ##### Configuration for SSL/TLS:
 
 1.2.1. Import your SSL client certificate file (PFX/PKCS#12 format) into *computer* certificate store:
 
   Right-click your SSL Client certificate file, select `Install PFX`, the Certificate Import Wizard will pop up.
-  Select `Local Machine` as Store Location, Click `Next` twice, then enter the passphase of the PFX file, 
+  Select `Local Machine` as Store Location, Click `Next` twice, then enter the passphrase of the PFX file, 
   click `Next` and click `Finish`.
 
 1.2.2. If your SSL client certificate is issued by a Certificate Authority trusted by your organisation, you
   can skip this step, otherwise (e.g. self-signed certificate), you need explicitly configure trust for it:
   Run `mmc.exe`, navigate to `File` > `Add/Remove Snap-in...`, select `Certificates` in left `Available snap-ins` panel, click `Add >`,
-  choose `Computer account`, click `Next`, `Finish`, `OK`, the `Certicates (Local Computer)` snap-in is added to Management Console.
+  choose `Computer account`, click `Next`, `Finish`, `OK`, the `Certificates (Local Computer)` snap-in is added to Management Console.
 
   In the Certificate Management Console for Local Computer;
   right-click `Trusted People`, navigate to `All Task`, then `Import...`, this opens the `Certificate Import Wizard`;
-  Clicks `Next`, locates the PFX file in `File to Import`, `Next`, enters passphrase for the private key, clicks `Next` twice and `Finish`.
+  Clicks `Next`, locates the PFX file in `File to Import`, `Next`, enter passphrase for the private key, clicks `Next` twice and `Finish`.
 
   Make sure that the service account of ADFS role service has access to the imported key/certificate.
 
@@ -71,13 +71,13 @@ You also need the certificate of the Certificate Authority (*CA*) for the MID se
 1.2.4. Configure trust to Root CA of MID servers:
    In the open console, navigate to `Trusted Root Certificate Authority`,
    Right-click `Certificates`, select `All Tasks`, `Import...` , then `Next`,
-   select the file *.crt containing the Root CA of MID servers in the correct environment (production/test),
+   select the file *.crt containing the Root CA of MID servers,
    `Next` twice, `Finish`, confirm `Yes` on the Security Warning "You are about to install a certificate from a certificate authority (CA) claiming to represent: ... Thumbprint (sha1): ..."
    Click `OK`.
 
 1.2.5. Verify the SSL/TLS connectivity:
    Use "Internet Explorer" (version 10 & 11 are tested) to connect to the URL
-   https://mobileid.swisscom.com/soap/services/MSS_ProfilePort.
+   https://mobileid.swisscom.com/soap/services/MSS_ProfilePort
    IE should display a `Confirm Certificate` dialog for picking up the client certificate and then the text
 
 `````
@@ -104,7 +104,7 @@ The folder [samples](samples) contain several examples. The content of the confi
 
 `````
 The configuration contains two elements. The element `mobileIdClient` specifies the Mobild ID Service
-while the element `mobileIdAdfs` the integration of Mobile ID with ADFS. The semantics of the important attributes are:
+while the element `mobileIdAdfs` specifies the integration of Mobile ID with ADFS. The semantics of the important attributes are:
 
 * Element `mobileIdClient`:
   + `AP_ID`: Your Application Provider ID, as assigned by Mobile ID Service Provider. Mandatory.
@@ -121,7 +121,7 @@ while the element `mobileIdAdfs` the integration of Mobile ID with ADFS. The sem
   + `LoginNonceLength`: Length of the random string to be included in the login prompt (see parameter `LoginPrompt.`xx). Default: 5
   + `SessionMaxTries`:  In an *Mobile ID authentication session", a user can retry the Mobile ID after an unsuccessful login. This is the maximum number of unsucessful login tries in a Mobile ID authentication session. Default: `5`.
   + `SessionTimeoutSeconds`: Maximum duration, in seconds, of a Mobile ID authentication session.
-  + `ShowDebugMsg`: If this parameter is `true`, debugging information may be displayed in web browser in case of errors. Otherwise the debugging information is not displayed. (TODO: not yet implmented in alpha release.) Default: `false`
+  + `ShowDebugMsg`: If this parameter is `true`, debugging information may be displayed in web browser in case of errors. Otherwise the debugging information is not displayed. Default: `false`
 
 ### Step 3a: Installation of Mobile ID Authentication Provider for ADFS with Installer
 
@@ -149,9 +149,9 @@ The trace file `inst\setup_trace.log` in the installation folder records what th
    `````
    Alternatively, you can also install the DLL with command `gacutil.exe /i MobileId.Adfs.AuthnAdapter.dll`. 
    (`gacutil.exe` is available in Visual Studio 2013, default location `C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1A\bin\NETFX 4.5.1 Tools`.)
-   Repeat these for all DLLs
+   Repeat these for all DLLs.
 
-3. Register the DLL with ADFS: Take a note of the version of `MobileId.Adfs.AuthenticationAdapter.dll` (right-click the DLL file in Windows Explorer, select `Properties`, `Details`, read `File Version`). In the example below, we assume it is `1.0.0.1`. In Windows PowerShell prompt, enters
+3. Register the DLL with ADFS: Take a note of the version of `MobileId.Adfs.AuthenticationAdapter.dll` (right-click the DLL file in Windows Explorer, select `Properties`, `Details`, read `File Version`). In the example below, we assume it is `1.0.0.1`. In Windows PowerShell prompt, entertaining
    `````
    $TypeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=1.0.0.1, Culture=neutral, PublicKeyToken=2d8af5277000f5f0, processorArchitecture=MSIL"
    Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileId.Adfs.AuthnAdapter.xml" -TypeName $TypeName -Name "MobileID10"
@@ -175,6 +175,11 @@ The trace file `inst\setup_trace.log` in the installation folder records what th
    net start drs
    `````
 
+6. Verify the installation of the DLL
+   `````
+   Get-AdfsAuthenticationProvider "MobileID10"
+   `````
+
 ### Step 4: Configuration of ADFS
 
 This depends on your use case. For the verification purpose, configure ADFS as follows:
@@ -184,7 +189,7 @@ This depends on your use case. For the verification purpose, configure ADFS as f
 
 2. In `Authentication Policies`, edit `Global Authentication Policy`.
    For Primary Authentication, enable `Form Authentication` for `Extranet` and `Intranet` but do not enable `device authentication`.
-   For Multi-faction Authentication, require MFA for both `Intranet`and `Extranet`, select 'Mobile ID Authentation' as `additional authentication method`.
+   For Multi-faction Authentication, require MFA for both `Intranet`and `Extranet`, select 'Mobile ID Authentication' as `additional authentication method`.
 
 3. TODO: Make sure that the service account of ADFS have access to the certificate/key used by Mobile ID (step 1.2.2).
 
