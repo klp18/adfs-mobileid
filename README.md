@@ -189,7 +189,7 @@ This depends on your use case. For the verification purpose, configure ADFS as f
 
 2. In `Authentication Policies`, edit `Global Authentication Policy`.
    For Primary Authentication, enable `Form Authentication` for `Extranet` and `Intranet` but do not enable `device authentication`.
-   For Multi-faction Authentication, require MFA for both `Intranet`and `Extranet`, select 'Mobile ID Authentication' as `additional authentication method`.
+   For Multi-Factor Authentication, require MFA for both `Intranet`and `Extranet`, select 'Mobile ID Authentication' as `additional authentication method`.
 
 3. TODO: Make sure that the service account of ADFS have access to the certificate/key used by Mobile ID (step 1.2.2).
 

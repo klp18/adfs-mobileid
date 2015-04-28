@@ -25,7 +25,6 @@ Compression=lzma
 SolidCompression=yes
 SetupLogging=yes
 PrivilegesRequired=admin
-OutputManifestFile=Manifest.txt
 VersionInfoVersion={#MyAppFullVersion}
 UninstallFilesDir={app}\inst
 MinVersion=6.3.9200

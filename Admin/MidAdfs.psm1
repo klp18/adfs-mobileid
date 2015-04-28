@@ -184,7 +184,7 @@ function _guessSchemeName($schemeName) {
   };
   $sh = (Get-AdfsWebConfig).ActiveThemeName;
   if ($sh -ne "Default") {
-    Write-Debug "GuessSchemeName: use ActiveTheme '$schemeName'";
+    Write-Debug "GuessSchemeName: use ActiveTheme '$sh'";
     return $sh;
   };
   $sh = Get-AdfsWebTheme | Where-Object {$_.Name -eq "custom"};
@@ -230,17 +230,30 @@ function _guessSchemeName($schemeName) {
 }
 
 # Add the static file resource spin.js to ADFS scheme, return $true on success, $false on failure.
-function _replaceSpinJs($schemeName,$filePath) {
+function _replaceSpinJs($filePath, $schemeName) {
+  Write-Debug "_replaceSpinJs($filePath, $schemeName)";
   $schemeNameToBeUsed = _guessSchemeName($schemeName);
   if ($schemeNameToBeUsed -ne $null) {
     $localError = $null;
-    Set-AdfsWebTheme -TargetName $schemeNameToBeUsed -AdditionalFileResource @{Uri="/adfs/portal/script/spin.js";path=$filePath} -ErrorVariable localError;
-    if ($localError -eq $null) {
-      Write-Verbose "Set-AdfsWebTheme -TargetName $schemeNameToBeUsed -AdditionalFileResource @{Uri='/adfs/portal/script/spin.js';path='$filePath'}";
+    Write-Debug "Set-AdfsWebTheme -TargetName $schemeNameToBeUsed -AdditionalFileResource @{Uri='/adfs/portal/script/spin.js';path='$filePath'}";
+    Set-AdfsWebTheme -TargetName $schemeNameToBeUsed -AdditionalFileResource @{Uri="/adfs/portal/script/spin.js";path="$filePath"} -ErrorVariable localError;
+    if (! ([System.String]::IsNullOrEmpty($localError)) ) {
+      Write-Warning "Set-AdfsWebTheme: '$localError'";
+      return $false;
+    };
+    # $localError cannot be fully trusted, we need extra validation
+    $s = (Get-AdfsWebTheme -Name $schemeNameToBeUsed).AdditionalFileResources["/adfs/portal/script/spin.js"];
+    if ($s -eq $null) {
+      Write-Warning "Set-AdfsWebTheme: could not set spin.js";
+      return $false;
+    } else {
+      Write-Verbose "Set-AdfsWebTheme -TargetName $schemeNameToBeUsed for spin.js succeed";
       return $true;
     };
+  } else {
+    Write-Warning "_replaceSpinJs: could not guess schemeName";
+    return $false;
   };
-  return $false;
 }
 
 # return status (true on success, false on failure)
@@ -283,7 +296,7 @@ function RegisterMobileID($version,$versionQdot,$publicKeyToken) {
   }
 
   Write-Verbose "# install static web resource in ADFS";
-  _replaceSpinJs($null, "lib/spin.min.js"); # possible error is not fatal, continue
+  _replaceSpinJs("lib/spin.min.js"); # possible error is not fatal, continue
 
   Write-Verbose "# restart ADFS service and its running dependencies";
   return _restartServices("adfssrv");
@@ -301,3 +314,4 @@ Export-ModuleMember -Function RegisterMobileID,UnregisterMobileID,IsMidAdfsRunni
 #UnregisterMobileID "10"
 #_restartServices("adfssrv");
 # RegisterMobileID "10" "1.0.0.0" "2d8af5277000f5f0"
+#_replaceSpinJs("lib/spin.min.js");
