@@ -302,8 +302,28 @@ function RegisterMobileID($version,$versionQdot,$publicKeyToken) {
   return _restartServices("adfssrv");
 }
 
+# import config file $configFile to MidAdfs (short) version $midAdfsVersion, return true on success, false otherwise
+function ImportMidAdfsConfig($configFile, $midAdfsVersion) {
+  if (! (Test-Path -PathType Leaf -Path $configFile)) {
+    Write-Error "Cannot read file $configFile. Error";
+    return $false;
+  };
+  if (! (IsMidAdfsRunning($midAdfsVersion))) {
+    Write-Error "Mobile ID Authentication Provider v$midAdfsVersion is not installed";
+    return $false;
+  };
+  Write-Debug "Import-AdfsAuthenticationProviderConfigurationData -FilePath $configFile -Name 'MobileID$midAdfsVersion'";
+  $localError = $null;
+  Import-AdfsAuthenticationProviderConfigurationData -FilePath $configFile -Name "MobileID$midAdfsVersion" -ErrorVariable localError;
+  if (_hadError($localError)) {
+     Write-Error $localError[0];
+     return $false;
+  } else {
+     return _restartServices("adfssrv");
+  };
+}
 
-Export-ModuleMember -Function RegisterMobileID,UnregisterMobileID,IsMidAdfsRunning
+Export-ModuleMember -Function RegisterMobileID,UnregisterMobileID,IsMidAdfsRunning,ImportMidAdfsConfig
 
 # Test
 #$DebugPreference = "Continue";
@@ -315,3 +335,7 @@ Export-ModuleMember -Function RegisterMobileID,UnregisterMobileID,IsMidAdfsRunni
 #_restartServices("adfssrv");
 # RegisterMobileID "10" "1.0.0.0" "2d8af5277000f5f0"
 #_replaceSpinJs("lib/spin.min.js");
+# ImportMidAdfsConfig "midadfs_preprod.xml" "10";
+# ImportMidAdfsConfig "notexisting.xml" "10";
+# ImportMidAdfsConfig "midadfs_preprod.xml" "99";
+# ImportMidAdfsConfig "midadfs_preprod.xml";
