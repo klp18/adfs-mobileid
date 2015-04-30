@@ -90,13 +90,13 @@ function IsMidAdfsRunning($version) {
 
 $MidDlls = @(
   "MobileId.Adfs.AuthnAdapter.dll",
-  "de\\MobileId.Adfs.AuthnAdapter.resources.dll",
-  "fr\\MobileId.Adfs.AuthnAdapter.resources.dll",
-  "it\\MobileId.Adfs.AuthnAdapter.resources.dll",
+  "de\MobileId.Adfs.AuthnAdapter.resources.dll",
+  "fr\MobileId.Adfs.AuthnAdapter.resources.dll",
+  "it\MobileId.Adfs.AuthnAdapter.resources.dll",
   "MobileId.ClientService.dll",
-  "de\\MobileId.ClientService.resources.dll",
-  "fr\\MobileId.ClientService.resources.dll",
-  "it\\MobileId.ClientService.resources.dll"
+  "de\MobileId.ClientService.resources.dll",
+  "fr\MobileId.ClientService.resources.dll",
+  "it\MobileId.ClientService.resources.dll"
 );
 
 # Remove the specified Mobile ID version completely from ADFS policy, ADFS provider and GAC.
@@ -158,8 +158,8 @@ function UnregisterMobileID($version) {
   };
   $publish = New-Object System.EnterpriseServices.Internal.Publish;
   foreach ($dll in $MidDlls) {
-    Write-Debug "GacRemove($dll)";
-    $publish.GacRemove($dll);
+    Write-Debug "GacRemove('$pwd\lib\$dll')";
+    $publish.GacRemove("$pwd\lib\$dll");
   };
 
   return $true;
@@ -281,8 +281,8 @@ function RegisterMobileID($version,$versionQdot,$publicKeyToken) {
   };
   $publish = New-Object System.EnterpriseServices.Internal.Publish;
   foreach ($dll in $MidDlls) {
-    Write-Debug "GacInstall($dll)";
-    $publish.GacInstall($dll);
+    Write-Debug "GacInstall('$pwd\lib\$dll')";
+    $publish.GacInstall("$pwd\lib\$dll");
   };
 
   Write-Verbose "# register Mobile ID v$version to ADFS";
