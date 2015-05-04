@@ -1,11 +1,11 @@
-﻿# Language for Mobile ID applet
+# Language for Mobile ID applet
 AppletLanguage = en
 
 # Text for the button that would cancel the whole multi-factor login
 CancelButton = Cancel Login
 
-# Text for the button that would restart the Mobile ID login (sub-)process. The user remains authenticated with the primary authentation.
-RetryButton = Retry
+# Text for the button that would restart the Mobile ID login (sub-)process. The user remains authenticated with the primary authentication.
+RetryButton = Retry Login
 
 # Text for login page title
 LoginPageTitle = Login with Mobile ID
