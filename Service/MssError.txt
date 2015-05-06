@@ -34,7 +34,7 @@ mss_209 = The service could not contact your mobile device (bad connection...). 
 # the request has been cancelled by the user
 # [R] Please try again. If the error persists, contact your Mobile Network Opertor Support Hotline.
 # [S] The request has been canceled by the user.
-mss_401 = You have canceled the request.
+mss_401 = To complete the request it has to be accepted and confirmed with your Mobile ID PIN.
 
 # the user's Mobile ID PIN is blocked
 # [R] A new activation is required. Please visit the Mobile ID Portal of your Mobile Network Operator and follow the PIN forgotten link (#PortalUrl#)

@@ -11,7 +11,7 @@ mss_208 = Die Transaktion ist abgelaufen. Bitte versuchen Sie es erneut.
 mss_209 = Der Service konnte das mobile Endgerät nicht kontaktieren. (Schlechte Verbindung…). Bitte versuchen Sie es erneut.
 
 # [S] Der Vorgang wurde vom Nutzer abgebrochen.
-mss_401 = Sie haben den Vorgang abgebrochen.
+mss_401 = Um den Vorgang abzuschliessen, muss die Anfrage akzeptiert und mit Ihrem Mobile ID PIN bestätigt werden.
 
 # [S] Ihre Mobile ID PIN ist gesperrt. Besuchen Sie #URL# um Ihren PIN zurückzusetzen.
 mss_402 = Ihre Mobile ID PIN ist gesperrt. Besuchen Sie <a href="#PortalUrl#">das Portal Ihres Mobilfunkbetreibers</a> um Ihren PIN zurückzusetzen.

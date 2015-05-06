@@ -10,7 +10,7 @@ mss_208 = L'operazione è scaduta. Riprovi di nuovo.
 
 mss_209 = Il servizio non ha potuto contattare apparecchiature mobili del utente finale (connessione scadente...). Riprovi di nuovo.
 
-mss_401 = La richiesta é stata cancellata dal utilizzatore.
+mss_401 = Per completarla, la richiesta deve essere accettata e confermata con il Mobile ID PIN.
 
 # [S] Il vostro PIN Mobile ID é bloccato. Consulti #URL# per ripristinare il PIN.
 mss_402 = Il vostro codice PIN Mobile ID é bloccato. Consulti <a href="#PortalUrl#">il portale il tuo operatore di telefonia mobile</a> per ripristinare il PIN.

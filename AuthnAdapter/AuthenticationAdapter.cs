@@ -303,7 +303,7 @@ namespace MobileId.Adfs
                     ctx.Data.Add(STATE, 4);
                     logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "4");
                     // TODO: audit
-                    return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs);
+                    return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                 case ServiceStatusCode.EXPIRED_TRANSACTION: // reserved mobileid can return this status immdidately
                 case ServiceStatusCode.PB_SIGNATURE_PROCESS:
                     ctx.Data.Add(STATE, 5);
@@ -491,7 +491,7 @@ namespace MobileId.Adfs
                             ctx.Data[STATE] = 14;
                             logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_CANCEL: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
                             // TODO: Audit
-                            return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs);
+                            return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                         default:
                             ctx.Data[STATE] = 12;
                             logger.TraceEvent(TraceEventType.Error, 0, "TECH_ERROR: " + logInfo + ", state:" + ctx.Data[STATE] + ", srvStatusCode:" + (int) rsp.Status.Code 
@@ -512,6 +512,9 @@ namespace MobileId.Adfs
                     case 13:
                     case 5:
                     case 35:
+                    case 4:
+                    case 14:
+                    case 34:
                         {   // check session age and number of retries
                             int ageSeconds = (int)((DateTime.UtcNow.Ticks / 10000 - (long) ctx.Data[SESSBEGIN]) / 1000);
                             if (ageSeconds >= cfgAdfs.SessionTimeoutSeconds) {
@@ -558,7 +561,7 @@ namespace MobileId.Adfs
                                 ctx.Data[STATE] = 34;
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
                                 // TODO: audit
-                                return new AdapterPresentation(AuthView.AutoLogout, cfgAdfs);
+                                return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                             case ServiceStatusCode.EXPIRED_TRANSACTION:
                             case ServiceStatusCode.PB_SIGNATURE_PROCESS:
                                 ctx.Data[STATE] = 35;

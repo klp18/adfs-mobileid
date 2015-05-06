@@ -10,6 +10,7 @@ mss_208 = La transaction a expirée. Veuillez réessayer.
 
 mss_209 = Le service n'a pas pu contacter le mobile de l'utilisateur (mauvaise connexion...). Veuillez réessayer.
 
+# TODO: translate "To complete the request it has to be accepted and confirmed with your Mobile ID PIN."
 mss_401 = La requête a été annulée par l'utilisateur.
 
 # [S] Votre PIN Mobile ID est bloqué. Veuillez visiter #URL# pour réinitialiser le code PIN.
