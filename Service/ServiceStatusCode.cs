@@ -52,6 +52,16 @@ namespace MobileId
         UnsupportedStatusCode = -500,
 
         /// <summary>
+        /// User's Serial Number is not registered in the Application Provider.
+        /// </summary>
+        UserSerialNumberNotRegistered = -404,
+
+        /// <summary>
+        /// User's Serial Number is not registered in the Application Provider.
+        /// </summary>
+        UserSerialNumberMismatch = -403,
+
+        /// <summary>
         /// Client-side error in configurations
         /// </summary>
         ConfigError = -402,

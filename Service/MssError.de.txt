@@ -30,3 +30,7 @@ mss_422 = Ihre Mobile ID ist nicht mehr aktiv. Besuchen Sie <a href="#PortalUrl#
 mss_501 = Fehler beim Prüfen der Bestätigung. Bitte versuchen Sie es erneut und wenn der Fehler bestehen bleibt, kontaktieren Sie Ihren Mobilfunkanbieter.
 
 mss_503 = Fehler beim Prüfen der Bestätigung. Bitte versuchen Sie es erneut und wenn der Fehler bestehen bleibt, kontaktieren Sie Ihren Mobilfunkanbieter.
+
+mss_-404 = Die Serial Nummer von Ihrem Mobile ID Zertifikat ist nicht registriert.
+
+mss_-403 = Die Serial Nummer von Ihrem Mobile ID Zertifikat stimmt nicht mit der registrierten Nummer überein.

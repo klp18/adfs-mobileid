@@ -95,11 +95,6 @@ namespace MobileId
             return s.Substring(0,charLength);
         }
 
-        //public static ServiceStatusCode ParseStatusCode(string s)
-        //{
-        //    return ServiceStatusCode.GeneralError; // TODO
-        //}
-
         /// <summary>
         /// The acceptable length of Data-To-Be-Signed (DTBS) depends on the encoding of text. 
         /// This method calculate the acceptable length of a DTBS string.
@@ -110,6 +105,36 @@ namespace MobileId
         {
             // TODO
             return AuthRequestDto.MAX_UTF8_CHARS_DTBS;
+        }
+
+        /// <summary>
+        /// Extract the Serial Number (OID 2.5.4.5) from a X500 Distinguished Name (DN).
+        /// </summary>
+        /// <param name="dn"></param>
+        /// <returns>
+        /// If DN contains exactly one Serial Number attribute, return its value.
+        /// If DN does not contain Serial Number, return <c>null</c>.
+        /// If DN contains multiple Serial Number, return the first value, in the order in ASN1 encoding.
+        /// </returns>
+        public static string ExtractFirstSnFromDn(X500DistinguishedName dn)
+        {
+            string snName = new Oid("2.5.4.5").FriendlyName;
+            string dnMultiLine = dn.Decode(X500DistinguishedNameFlags.UseNewLines);
+            int iStart = dnMultiLine.IndexOf(snName);
+            if (iStart == -1)
+            {
+                return null;
+            };
+            iStart += snName.Length + 1;
+            int iEnd = dnMultiLine.IndexOf(Environment.NewLine, iStart);
+            if (iEnd != -1)
+            {
+                return dnMultiLine.Substring(iStart, iEnd - iStart);
+            }
+            else
+            {
+                return dnMultiLine.Substring(iStart);
+            }
         }
 
     }

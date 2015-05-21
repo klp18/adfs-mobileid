@@ -65,3 +65,7 @@ mss_501 = Verification error with the confirmation. Please try again and if the 
 
 # the signature request was not properly constructed
 mss_503 = Verification error with the confirmation. Please try again and if the error persist contact your Mobile Network Operator.
+
+mss_-404 = The serial number of your Mobile ID certificate is not registered.
+
+mss_-403 = The serial number of your Mobile ID certificate differs from the registered one.

@@ -22,6 +22,7 @@ namespace MobileId
         string _transIdPrefix = "";
         string _transId;
         bool _srvSideValidation = false;
+        string _userSerialNumber = null;
 
         /// <summary>
         /// Check the completeness of the object.
@@ -52,6 +53,7 @@ namespace MobileId
             sb.Append(", TransIdPrefix:").Append(Util.Str(_transIdPrefix));
             sb.Append(", SrvSideValidation:").Append(_srvSideValidation);
             sb.Append(", UserLanguage:").AppendFormat("{0:G}", _userLanguage);
+            sb.Append(", UserSerialNumber:").Append(_userSerialNumber);
             sb.Append("}");
             return sb.ToString();
         }
@@ -148,6 +150,15 @@ namespace MobileId
             }
         }
 
+        /// <summary>
+        /// The expected Serial Number in the Subject attribute of user's certificate.
+        /// </summary>
+        public string UserSerialNumber {
+            get { return _userSerialNumber;}
+            set { _userSerialNumber = value; }
+        }
+
+        // (deprecated)
         public bool SrvSideValidation { 
             get {
                 return _srvSideValidation;

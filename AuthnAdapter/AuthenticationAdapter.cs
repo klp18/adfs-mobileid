@@ -204,7 +204,8 @@ namespace MobileId.Adfs
                     ds.SearchScope = SearchScope.Subtree;
                     ds.Filter = "(&(objectClass=user)(objectCategory=person)(userPrincipalName=" + upn + "))";
                     ds.PropertiesToLoad.Add(cfgAdfs.AdAttrMobile);
-                    ds.PropertiesToLoad.Add(cfgAdfs.AdAttrMidSerialNumber);
+                    if (cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore)
+                        ds.PropertiesToLoad.Add(cfgAdfs.AdAttrMidSerialNumber);
 
                     SearchResult result = ds.FindOne();
                     if (result != null)
@@ -217,12 +218,20 @@ namespace MobileId.Adfs
                                 if (thisProperty.ToLower(System.Globalization.CultureInfo.InvariantCulture) == cfgAdfs.AdAttrMobile)
                                 {
                                     msisdn = propertyValue.ToString();
-                                    ctx.Data.Add(MSISDN, propertyValue.ToString()); //  let it blow up if MSISDN is ambiguous
+                                    ctx.Data.Add(MSISDN, msisdn); //  let it blow up if MSISDN is ambiguous
                                 }
-                                if (thisProperty.ToLower(System.Globalization.CultureInfo.InvariantCulture) == cfgAdfs.AdAttrMidSerialNumber)
+                                if ((cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore) &&
+                                    (thisProperty.ToLower(System.Globalization.CultureInfo.InvariantCulture) == cfgAdfs.AdAttrMidSerialNumber))
                                 {
                                     snOfDN = propertyValue.ToString();
-                                    ctx.Data.Add(UKEYSN, propertyValue.ToString()); // let it blow up if UKEYSN is ambiguous
+                                    if (cfgAdfs.AdAttrMidSerialNumber == "altsecurityidentities") {
+                                        // special treatment for attribute altSecurityIdentities (1.2.840.113556.1.4.867, https://msdn.microsoft.com/en-us/library/ms677943.aspx)
+                                        if (! string.IsNullOrWhiteSpace(snOfDN) && snOfDN.StartsWith("MID:<SN>", true, CultureInfo.InvariantCulture)) {
+                                            ctx.Data.Add(UKEYSN, snOfDN.Substring(8)); // let it blow up if UKEYSN is ambiguous
+                                        };
+                                    } else {
+                                        ctx.Data.Add(UKEYSN, propertyValue.ToString()); // let it blow up if UKEYSN is ambiguous
+                                    }
                                 }
                             }
                         }
@@ -247,14 +256,14 @@ namespace MobileId.Adfs
 
             if (String.IsNullOrEmpty(msisdn))
             {
-                EventLog.WriteEntry(EVENTLOGSource, "Method not available for user " + upn + " (no MSISN defined)", EventLogEntryType.Error, 102);
+                EventLog.WriteEntry(EVENTLOGSource, "Method not available for user " + upn + " (no MSISN requireExistence)", EventLogEntryType.Error, 102);
                 logger.TraceEvent(TraceEventType.Warning, 0, "Mobile ID not available for " + upn + ": mobile attribute not found in AD");
                 return false;
             }
-            if (String.IsNullOrEmpty(snOfDN))
+            if (String.IsNullOrEmpty(snOfDN) && cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.requireExistence))
             {
-                // TODO: implement strategy for SN
                 logger.TraceEvent(TraceEventType.Information, 0, "Serial Number not found for " + upn);
+                return false;
             }
 
             // store "session"-scope information to ctx. The life time of a "session" is identical with the lifetime of ctx.
@@ -277,6 +286,8 @@ namespace MobileId.Adfs
             req.UserLanguage = (UserLanguage)Enum.Parse(typeof(UserLanguage), resMgr.GetString(RES_LANG, culture));
             req.DataToBeSigned = _buildMobileIdLoginPrompt(req.UserLanguage, culture, uiTrxId);
             req.TimeOut = cfgMid.RequestTimeOutSeconds;
+            if (cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore && ctx.Data.ContainsKey(UKEYSN) )
+                req.UserSerialNumber = (string)ctx.Data[UKEYSN];
             ctx.Data.Add(AUTHBEGIN, DateTime.UtcNow.Ticks/10000);
             ctx.Data.Add(SESSBEGIN, DateTime.UtcNow.Ticks/10000);
             AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */);
@@ -458,7 +469,8 @@ namespace MobileId.Adfs
                 AuthRequestDto req = new AuthRequestDto();
                 req.PhoneNumber = (string)ctx.Data[MSISDN];
                 req.DataToBeSigned = (string)ctx.Data[DTBS];
-
+                if (cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore && ctx.Data.ContainsKey(UKEYSN))
+                    req.UserSerialNumber = (string)ctx.Data[UKEYSN];
                 AuthResponseDto rsp;
                 for (int i = ageSeconds; i <= cfgMid.RequestTimeOutSeconds; i+= cfgMid.PollResponseIntervalSeconds ) { 
                     rsp = getWebClient().PollSignature(req, msspTransId);
@@ -536,6 +548,8 @@ namespace MobileId.Adfs
                         string uiTrxId = Util.BuildRandomBase64Chars(cfgAdfs.LoginNonceLength);
                         req.DataToBeSigned = _buildMobileIdLoginPrompt(req.UserLanguage, culture, uiTrxId);
                         req.TimeOut = cfgMid.RequestTimeOutSeconds;
+                        if (cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore && ctx.Data.ContainsKey(UKEYSN))
+                            req.UserSerialNumber =  (string)ctx.Data[UKEYSN];
                         ctx.Data[AUTHBEGIN] = DateTime.UtcNow.Ticks/10000;
                         AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */);
                         ctx.Data[SESSTRIES] = (int) ctx.Data[SESSTRIES] + 1;

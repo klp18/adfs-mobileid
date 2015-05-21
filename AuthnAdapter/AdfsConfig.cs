@@ -9,8 +9,8 @@ namespace MobileId.Adfs
     class AdfsConfig
     {
         ulong _webClientMaxRequest = 100;
-        string _adAttrMobile = "mobile";
-        string _adAttrMidSerialNumber = "msNPCallingStationID".ToLower();
+        string _adAttrMobile = "mobile";  // LDAP attribute 0.9.2342.19200300.100.1.41, see https://msdn.microsoft.com/en-us/library/ms677119.aspx
+        string _adAttrMidSerialNumber = "serialNumber".ToLower(); // LDAP attribute 2.5.4.5, see https://msdn.microsoft.com/en-us/library/ms679771.aspx
         string _defaultLoginPrompt = "Login with Mobile ID ({0})?";
         bool _ssoOnCancel = false;
         int _sessionTimeoutSeconds = 300;
@@ -48,7 +48,7 @@ namespace MobileId.Adfs
         /// Mobile ID Token. The Serial Number is part of the Subject of the Mobile ID Certificate.
         /// The AD attribute name is case-insensitive and converted to lower case internally.
         /// If the AD attribute has multiple values, the last returned value will be used.
-        /// Default is "msNPCallingStationID".
+        /// Default is "serialNumber".
         /// </summary>
         public string AdAttrMidSerialNumber {
             get { return _adAttrMidSerialNumber;}

@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Specialized;
 using System.Configuration;
-using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -34,6 +32,7 @@ namespace MobileId
         bool _ignoreUserSnChange = false;
         int _pollResponseDelaySeconds = 15;
         int _pollResponseIntervalSeconds = 1;
+        UserSerialNumberPolicy _userSericalNumberPolicy = UserSerialNumberPolicy.ignore;
 
         public static WebClientConfig CreateConfigFromFile(string fileName)
         {
@@ -99,6 +98,8 @@ namespace MobileId
                             cfg.PollResponseDelaySeconds = int.Parse(s);
                         if (!string.IsNullOrWhiteSpace(s = xml["PollResponseIntervalSeconds"]))
                             cfg.PollResponseIntervalSeconds = int.Parse(s);
+                        if (!string.IsNullOrWhiteSpace(s = xml["UserSerialNumberPolicy"]))
+                            cfg.UserSerialNumberPolicy = (UserSerialNumberPolicy)Enum.Parse(typeof(UserSerialNumberPolicy), s, true);
                         // TODO: update on change of properties
                         
                         break;
@@ -152,7 +153,9 @@ namespace MobileId
         [ConfigurationProperty("SslCertThumbprint", IsRequired = true, DefaultValue = "CurrentUser")]
         public string SslCertThumbprint {
             get { return _sslCertThumbprint; }
-            set { _sslCertThumbprint = value; }
+            set { if (value != null)
+                _sslCertThumbprint = System.Text.RegularExpressions.Regex.Replace(value, @"\s+", ""); 
+            }
         }
 
         /// <summary>
@@ -226,6 +229,11 @@ namespace MobileId
             set { if (value > 0 && value < _requestTimeOutSeconds) _pollResponseIntervalSeconds = value; }
         }
 
+        public UserSerialNumberPolicy UserSerialNumberPolicy {
+            get { return _userSericalNumberPolicy; }
+            set { _userSericalNumberPolicy = value; }
+        }
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder(512);  // TODO: update on change
@@ -245,10 +253,38 @@ namespace MobileId
             sb.Append("; SslCertThumbprint:\"").Append(_sslCertThumbprint);
             sb.Append("\"; SslRootCaCertDN:\"").Append(_sslCaCertDN);
             sb.Append("\"; UserLanguageDefault:\"").Append(_userLanguageDefault);
+            sb.Append("\"; UserSerialNumberPolicy:").Append(_userSericalNumberPolicy);
             sb.Append("\"}");
             return sb.ToString();
 
-
         }
     }
+
+    [FlagsAttribute]
+    public enum UserSerialNumberPolicy
+    {
+        /// <summary>
+        /// Serial numbers are silently ignored. A user can be authenticated regardless of his serial number.
+        /// </summary>
+        /// <remarks>This is the default setting.</remarks>
+        ignore = 0,
+
+        /// <summary>
+        /// Write a warning message in log if a mismatch of serial number is detected.
+        /// </summary>
+        warnMismatch = 1,
+
+        /// <summary>
+        /// a user can be authenticated only if the user has an non-empty serial number in his attribute store (e.g. Active Directory).
+        /// A serial number consisting of only white spaces is considered as "empty" in this context.
+        /// </summary>
+        requireExistence = 2,
+
+        /// <summary>
+        /// a user can be authenticated only if his/her serial number matches the one in the user's attribute store (e.g. Active Directory).
+        /// The string comparison is case sensitive.
+        /// </summary>
+        match = 4
+    }
+
 }

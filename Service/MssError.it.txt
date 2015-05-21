@@ -29,3 +29,9 @@ mss_422 = Il vostro Mobile ID non è più attivo. Visita <a href="#PortalUrl#">i
 mss_501 = Errore durante la conferma. Riprovi di nuovo e se l'errore persiste rivolgersi all'operatore di rete mobile.
 
 mss_503 = Errore durante la conferma. Riprovi di nuovo e se l'errore persiste rivolgersi all'operatore di rete mobile.
+
+# TODO: translate next line
+mss_-404 = The serial number of your Mobile ID certificate is not registered.
+
+# TODO: translate next line
+mss_-403 = The serial number of your Mobile ID certificate differs from the registered one.

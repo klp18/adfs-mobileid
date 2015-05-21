@@ -387,12 +387,17 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     return new AuthResponseDto(ServiceStatusCode.UnknownResponse, "MSS_TransID is missing");
                 };
 
-                // At this point, the request is considered correct
+                // At this point, the request is considered correct (subjected serial number check)
 
                 rspDto = new AuthResponseDto(ServiceStatusCode.SIGNATURE);
                 rspDto.MsspTransId = msspTransid;
                 rspDto.Signature = dtbs_signature;
 
+                if (!_verifyUserSerialNumber(inDto, rspDto))
+                {
+                    logger.TraceEvent(TraceEventType.Verbose, 0, rspDto.ToString());
+                    return rspDto; // rspDto is modified in this case
+                }
             }
             catch (NullReferenceException ex)
             {
@@ -405,6 +410,34 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
 
         }
 
+        // verify serial number, return true on success, false on failure. In case of fasle, outDto is assigned with a new appropriate AuthResponseDto.
+        private bool _verifyUserSerialNumber(AuthRequestDto inDto, AuthResponseDto outDto)
+        {
+            if (_cfg.UserSerialNumberPolicy == UserSerialNumberPolicy.ignore)
+                return true;
+
+            if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.requireExistence)) {
+                if (string.IsNullOrWhiteSpace(inDto.UserSerialNumber)) {
+                    logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "User has empty Serial Number in attribute store");
+                    outDto.Status = new ServiceStatus(ServiceStatusCode.UserSerialNumberNotRegistered);
+                    return false;
+                }
+            }
+
+            if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.match) && (inDto.UserSerialNumber != outDto.UserSerialNumber) ) {
+                string s = "User's Serial Numbers mismatch: mobile=" + inDto.PhoneNumber + ", response='" + outDto.UserSerialNumber + "', store='" + inDto.UserSerialNumber + "'";
+                logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, s);
+                outDto.Status = new ServiceStatus(string.IsNullOrWhiteSpace(inDto.UserSerialNumber) ? 
+                    ServiceStatusCode.UserSerialNumberNotRegistered : ServiceStatusCode.UserSerialNumberMismatch);
+                return false;
+            };
+
+            if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.warnMismatch) && (inDto.UserSerialNumber != outDto.UserSerialNumber) ) {
+                logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service, "User's Serial Numbers mismatch: mobile=" + inDto.PhoneNumber + ", response='"
+                    + outDto.UserSerialNumber + "', store='" + inDto.UserSerialNumber + "'");
+            };
+            return true;
+        }
 
         private AuthResponseDto _parseSignAsync200Response(string httpRspBody, AuthRequestDto inDto)
         {
@@ -536,11 +569,17 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     }
                 }
 
-                // At this point, the request is considered correct
+                // At this point, the request is considered correct (subjected to serial number check)
 
                 rspDto = new AuthResponseDto(ServiceStatusCode.SIGNATURE);
                 rspDto.MsspTransId = msspTransid;
                 rspDto.Signature = dtbs_signature;
+
+                if (!_verifyUserSerialNumber(inDto, rspDto))
+                {
+                    logger.TraceEvent(TraceEventType.Verbose, 0, rspDto.ToString());
+                    return rspDto; // rspDto is modified in this case
+                }
 
             }
             catch (NullReferenceException ex)
@@ -678,6 +717,8 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             logger.TraceEvent(TraceEventType.Verbose, 0, "RequestSignature(req={0}, async={1})", req, asynchronous);
             if (!req.IsComplete())
                 return new AuthResponseDto(ServiceStatusCode.InvalidInput, "Input is incomplete");
+            if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.requireExistence) && string.IsNullOrWhiteSpace(req.UserSerialNumber))
+                return new AuthResponseDto(ServiceStatusCode.UserSerialNumberNotRegistered);
 
             // build request SOAP body
             string httpReqBody = _formatSignReqAsSoap(req, asynchronous);
@@ -840,10 +881,15 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     }
                 }
 
-                // At this point, the request is considered correct
+                // At this point, the request is considered correct (subjected to serial number check)
 
                 rspDto = new AuthResponseDto(ServiceStatusCode.SIGNATURE);
                 rspDto.Signature = dtbs_signature;
+                if (!_verifyUserSerialNumber(inDto, rspDto))
+                {
+                    logger.TraceEvent(TraceEventType.Verbose, 0, rspDto.ToString());
+                    return rspDto; // rspDto is modified in this case
+                }
 
             }
             catch (NullReferenceException ex)

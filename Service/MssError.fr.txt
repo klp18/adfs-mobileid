@@ -30,3 +30,9 @@ mss_422 = Votre Mobile ID n'est plus active. Veuillez visiter <a href="#PortalUr
 mss_501 = Erreur lors de la vérification de la requête. Veuillez réessayer et si l'erreur persiste contactez votre opérateur mobile.
 
 mss_503 = Erreur lors de la vérification de la requête. Veuillez réessayer et si l'erreur persiste contactez votre opérateur mobile.
+
+# TODO: translate next line
+mss_-404 = The serial number of your Mobile ID certificate is not registered.
+
+# TODO: translate next line
+mss_-403 = The serial number of your Mobile ID certificate differs from the registered one.
