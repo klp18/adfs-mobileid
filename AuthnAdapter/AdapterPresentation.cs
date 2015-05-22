@@ -98,7 +98,8 @@ namespace MobileId.Adfs
                 s = this.param;
             };
             string portalUrl = null;
-            if (this.rspDto.Extensions.ContainsKey(AuthResponseExtension.UserAssistencePortalUrl)) {
+            if ((this.rspDto != null) && this.rspDto.Extensions.ContainsKey(AuthResponseExtension.UserAssistencePortalUrl))
+            {
                 portalUrl = (string)this.rspDto.Extensions[AuthResponseExtension.UserAssistencePortalUrl];
                 if (!string.IsNullOrWhiteSpace(portalUrl)) {
                     portalUrl += "&lang=" + resMgr.GetString(RES_LANGUAGE, new CultureInfo(lcid));
