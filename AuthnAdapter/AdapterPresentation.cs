@@ -151,7 +151,7 @@ window.setTimeout(function continueMobileIdAuth() {document.getElementById('midC
                     s = _buildErrorMessage(lcid);
                     return loginFormCommonHtml 
 + @"<input name=""" + (this.adfsConfig.SsoOnCancel ? "Single" : "Local") + @"SignOut"" type=""hidden"" checked=""checked"" value=""Sign Out""/>
-<div class=""submitMargin""><p>" + s + @"</p></div>
+<div class=""submitMargin error""><p>" + s + @"</p></div>
 <div class=""submitMargin""><input name=""SignOut"" class=""submit"" id=""midSignOutButton"" type=""submit"" value=""" + ( resMgr.GetString(RES_CANCEL_BUTTON, culture) ) + @"""/></div>
 </form>";
 
@@ -178,7 +178,7 @@ function onClickMidRetry() {document.getElementById('midHiddenSignOut').disabled
 </script>
 " + loginFormCommonHtml
 + @"<input name=""" + (this.adfsConfig.SsoOnCancel ? "Single" : "Local") + @"SignOut"" type=""hidden"" id=""midHiddenSignOut"" checked=""checked"" value=""Sign Out""/>
-<div class=""submitMargin""><p>" + s + @"</p></div>
+<div class=""submitMargin error""><p>" + s + @"</p></div>
 <div class=""submitMargin""><input name=""SignOut"" class=""submit"" id=""midSignOutButton"" type=""submit"" value=""" + (resMgr.GetString(RES_CANCEL_BUTTON, culture) /* Cancel Login */) + @"""/>
 &nbsp;<input name=""Retry"" class=""submit"" id=""midActionButton"" onclick=""onClickMidRetry()"" type=""submit"" value=""" + (resMgr.GetString(RES_RETRY_BUTTON, culture) /* Retry */) + @"""/>
 </div></form>";
