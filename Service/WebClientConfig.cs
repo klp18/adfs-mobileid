@@ -24,7 +24,7 @@ namespace MobileId
         UserLanguage _userLanguageDefault = UserLanguage.en;
         string _serviceUrlPrefix = "https://mobileid.swisscom.com/soap/services/";
         string _dtbsPrefix = "";
-        bool _srvSideValidation = true;
+        bool _srvSideValidation = false;
         int _requestTimeOutSeconds = 80;
         string _seedApTransId = "Some ASCII text to be used to build the unique AP_TransId in request";
         bool _enableSubscriberInfo = false;
@@ -33,6 +33,8 @@ namespace MobileId
         int _pollResponseDelaySeconds = 15;
         int _pollResponseIntervalSeconds = 1;
         UserSerialNumberPolicy _userSericalNumberPolicy = UserSerialNumberPolicy.ignore;
+        bool _disableSignatureValidation = false;
+        bool _disableSignatureCertValidation = false;
 
         public static WebClientConfig CreateConfigFromFile(string fileName)
         {
@@ -54,7 +56,6 @@ namespace MobileId
             using (TextReader stream = new StringReader(cfgContent)) {
                 return CreateConfig(stream);
             }
-
         }
 
         public static WebClientConfig CreateConfig(TextReader cfgStream)
@@ -100,6 +101,10 @@ namespace MobileId
                             cfg.PollResponseIntervalSeconds = int.Parse(s);
                         if (!string.IsNullOrWhiteSpace(s = xml["UserSerialNumberPolicy"]))
                             cfg.UserSerialNumberPolicy = (UserSerialNumberPolicy)Enum.Parse(typeof(UserSerialNumberPolicy), s, true);
+                        if (!string.IsNullOrWhiteSpace(s = xml["DisableSignatureValidation"]))
+                            cfg.DisableSignatureValidation = Boolean.Parse(s);
+                        if (!string.IsNullOrWhiteSpace(s = xml["DisableSignatureCertValidation"]))
+                            cfg.DisableSignatureCertValidation = Boolean.Parse(s);
                         // TODO: update on change of properties
                         
                         break;
@@ -234,13 +239,25 @@ namespace MobileId
             set { _userSericalNumberPolicy = value; }
         }
 
+        public bool DisableSignatureValidation {
+            get { return _disableSignatureValidation; }
+            set { _disableSignatureValidation = value; }
+        }
+
+        public bool DisableSignatureCertValidation {
+            get { return _disableSignatureCertValidation;}
+            set { _disableSignatureCertValidation = value; }
+        }
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder(512);  // TODO: update on change
             // sorted alphabetically in name
-            sb.Append("{ApId: \"").Append(_apId);
-            sb.Append(", DtbsPrefix: \"").Append(_dtbsPrefix);
-            sb.Append("\"; EnableSubscriberInfo:").Append(_enableSubscriberInfo);
+            sb.Append("{ApId:\"").Append(_apId);
+            sb.Append("\", DtbsPrefix:\"").Append(_dtbsPrefix);
+            sb.Append("\"; DisableSignatureValidation:").Append(_disableSignatureValidation);
+            sb.Append("; DisableSignatureCertValidation:").Append(_disableSignatureCertValidation);
+            sb.Append("; EnableSubscriberInfo:").Append(_enableSubscriberInfo);
             sb.Append("; IgnoreUserSn:").Append(_ignoreUserSn);
             sb.Append("; IgnoreUserSnChange:").Append(_ignoreUserSnChange);
             sb.Append("; PollResponseDelaySeconds:").Append(_pollResponseDelaySeconds);
@@ -253,7 +270,7 @@ namespace MobileId
             sb.Append("; SslCertThumbprint:\"").Append(_sslCertThumbprint);
             sb.Append("\"; SslRootCaCertDN:\"").Append(_sslCaCertDN);
             sb.Append("\"; UserLanguageDefault:\"").Append(_userLanguageDefault);
-            sb.Append("\"; UserSerialNumberPolicy:").Append(_userSericalNumberPolicy);
+            sb.Append("\"; UserSerialNumberPolicy:\"").Append(_userSericalNumberPolicy);
             sb.Append("\"}");
             return sb.ToString();
 

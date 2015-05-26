@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Security.Cryptography;
+using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -371,7 +372,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 else
                 {
                     dtbs_signature = Convert.FromBase64String(s);
-                    if (! _isValidSignature(dtbs_signature))
+                    if (! _isValidSignature(inDto.DataToBeSigned, dtbs_signature))
                     {
                         logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Response Signature is invalid");
                         return new AuthResponseDto(ServiceStatusCode.InvalidResponseSignature);
@@ -562,7 +563,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 else
                 {
                     dtbs_signature = Convert.FromBase64String(s);
-                    if (!_isValidSignature(dtbs_signature))
+                    if (!_isValidSignature(inDto.DataToBeSigned, dtbs_signature))
                     {
                         logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Response Signature is invalid");
                         return new AuthResponseDto(ServiceStatusCode.InvalidResponseSignature);
@@ -874,7 +875,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 else
                 {
                     dtbs_signature = Convert.FromBase64String(s);
-                    if (!_isValidSignature(dtbs_signature))
+                    if (!_isValidSignature(inDto.DataToBeSigned, dtbs_signature))
                     {
                         logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Response Signature is invalid");
                         return new AuthResponseDto(ServiceStatusCode.InvalidResponseSignature);
@@ -976,20 +977,36 @@ xmlns:v1=""http://uri.etsi.org/TS102204/v1.1.2#"">
             }
         }
 
-        private bool _isValidSignature(byte[] signature)
+        private bool _isValidSignature(string dataToBeSigned, byte[] signature)
         {
-            // TODO: optionally verifies the signature
-            return true;
-            /*
-                byte[] todecode_byte = Convert.FromBase64String(aNode.InnerText);
-                X509Certificate certificateCA = X509Certificate2.CreateFromCertFile(cert_ca);
-                X509Certificate2 cert2 = new X509Certificate2(certificateCA);
+            if (dataToBeSigned == null) {
+                logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Input dataToBeSigned is null");
+                return false;
+            };
 
-                // Verify Signature
-                bool isSignatureValid = VerifySignature(todecode_byte, cert2);
-                if (!isSignatureValid) throw new CryptographicException();
-            */
+            if (_cfg.DisableSignatureValidation)
+                return true;
 
+            SignedCms signedCms = new SignedCms();
+            try
+            {
+                signedCms.Decode(signature);
+                byte[] dtbs_cms = signedCms.ContentInfo.Content;
+                if (Encoding.UTF8.GetString(dtbs_cms) != dataToBeSigned) {
+                    logger.TraceEvent(TraceEventType.Error, (int) EventId.Service, "DataToBeSigned differs: req='" + dataToBeSigned
+                        + "', rsp_hex=" + BitConverter.ToString(dtbs_cms));
+                    return false;
+                };
+                signedCms.CheckSignature(_cfg.DisableSignatureCertValidation);
+                logger.TraceEvent(TraceEventType.Verbose, (int)EventId.Service, "Signature Verified: signer_0='" 
+                    + signedCms.SignerInfos[0].Certificate.Subject + "', noChainValidation=" + _cfg.DisableSignatureCertValidation);
+                return true;
+            }
+            catch (Exception e)
+            {
+                logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "INVALID_SIGNATURE: " + e.Message);
+                return false;
+            }
         }
 
         private void _enrichAuthRspDto(AuthResponseDto rspDto)
