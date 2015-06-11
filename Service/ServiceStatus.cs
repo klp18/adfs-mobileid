@@ -52,6 +52,7 @@ namespace MobileId
                 case ServiceStatusCode.CARD_BLOCKED:
                 case ServiceStatusCode.NO_KEY_FOUND:
                 case ServiceStatusCode.NO_CERT_FOUND:
+                case ServiceStatusCode.EXPIRED_TRANSACTION:
                 case ServiceStatusCode.UserSerialNumberNotRegistered:
                 case ServiceStatusCode.UserSerialNumberMismatch:
                     return ServiceStatusColor.Yellow;

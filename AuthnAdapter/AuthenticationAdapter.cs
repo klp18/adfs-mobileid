@@ -45,23 +45,24 @@ namespace MobileId.Adfs
         // statistics, also used for recycle_webClient
         private ulong reqCount = 0;
 
-        // load dependent assemblies from embedded resource
-        // private readonly static LoadDependencies _loadDependencies = new LoadDependencies();
-
-        // TODO: use ETW
-        private const string EVENTLOGSource = "AD FS MobileID";
-        private const string EVENTLOGGroup = "Application";
+        // private const string EVENTLOGSource = "AD FS MobileID";
+        // private const string EVENTLOGGroup = "Application";
 
         private IAuthentication getWebClient()
         {
+            int id;
             if (_webClient == null || (++reqCount % cfgAdfs.WebClientMaxRequest) == 0) {
                 if (_webClient != null)
-                    logger.TraceEvent(TraceEventType.Verbose, 0, "delObj: name=WebClientImpl, reason=MaxRequest, id="
-                        + System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(_webClient));
+                {
+                    id = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(_webClient);
                     // see http://stackoverflow.com/questions/5703993/how-to-print-object-id
+                    logger.TraceEvent(TraceEventType.Verbose, 0, "delObj: name=WebClientImpl, reason=MaxRequest, id=" + id);
+                    Logging.Log.WebClientDestroyed(id);
+                }
                 _webClient = new WebClientImpl(cfgMid);
-                logger.TraceEvent(TraceEventType.Verbose, 0, "newObj: name=WebClientImpl, id="
-                    + System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(_webClient));
+                id = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(_webClient);
+                logger.TraceEvent(TraceEventType.Verbose, 0, "newObj: name=WebClientImpl, id=" + id);
+                Logging.Log.WebClientCreated(id);
             } else {
                 // TODO: check lifetime, recycle _webClient on time-to-live
             };
@@ -186,8 +187,16 @@ namespace MobileId.Adfs
             return prefix + prompt;
         }
 
+        public bool IsAvailableForUser(Claim identityClaim, IAuthenticationContext ctx) {
+            bool rc;
+            Logging.Log.IsAvailableForUserStart(_str(identityClaim), _str(ctx));
+            rc = isAvailableForUser(identityClaim, ctx);
+            Logging.Log.IsAvailableForUserStop(rc, identityClaim.Value);
+            return rc;
+        }
+
         // Check if mobile id authenicator is available for the user
-        public bool IsAvailableForUser(Claim identityClaim, IAuthenticationContext ctx)
+        private bool isAvailableForUser(Claim identityClaim, IAuthenticationContext ctx)
         {
             logger.TraceEvent(TraceEventType.Verbose, 0, "IsAvailableForUser(claim=" + _str(identityClaim) + ", ctx=" + _str(ctx) + ")");
 
@@ -235,15 +244,17 @@ namespace MobileId.Adfs
                                 }
                             }
                         }
-                        EventLog.WriteEntry(EVENTLOGSource, "Found user " + upn + " using " + ds.Filter +
-                            " with properties " + cfgAdfs.AdAttrMobile + "=" + msisdn + "," + cfgAdfs.AdAttrMidSerialNumber + "=" + snOfDN);
+                        //EventLog.WriteEntry(EVENTLOGSource, "Found user " + upn + " using " + ds.Filter +
+                        //    " with properties " + cfgAdfs.AdAttrMobile + "=" + msisdn + "," + cfgAdfs.AdAttrMidSerialNumber + "=" + snOfDN);
                         logger.TraceEvent(TraceEventType.Verbose, 0, "AdSearch.Found: upn=" + upn + ", filter=" + ds.Filter
                             + ", " + cfgAdfs.AdAttrMobile + "=" + msisdn + ", " + cfgAdfs.AdAttrMidSerialNumber + "=" + snOfDN);
+                        Logging.Log.AdSearch(upn, ds.Filter, cfgAdfs.AdAttrMobile, msisdn, cfgAdfs.AdAttrMidSerialNumber, snOfDN);
                     }
                     else
                     {
-                        EventLog.WriteEntry(EVENTLOGSource, "User not found " + upn + " using " + ds.Filter, EventLogEntryType.Error, 102);
+                        // EventLog.WriteEntry(EVENTLOGSource, "User not found " + upn + " using " + ds.Filter, EventLogEntryType.Error, 102);
                         logger.TraceEvent(TraceEventType.Warning, 0, "User not found in AD: upn=" + upn + ", ldapFilter=" + ds.Filter);
+                        Logging.Log.AttrUserNotFound(upn, ds.Filter);
                     }
                     ds.Dispose();
                 }
@@ -251,18 +262,21 @@ namespace MobileId.Adfs
             catch (Exception ex)
             {
                 logger.TraceEvent(TraceEventType.Error, 0, "AD Search Error: " + ex.Message);
+                Logging.Log.AdSearchError(ex.Message);
                 return false;
             }
 
             if (String.IsNullOrEmpty(msisdn))
             {
-                EventLog.WriteEntry(EVENTLOGSource, "Method not available for user " + upn + " (no MSISN requireExistence)", EventLogEntryType.Error, 102);
+                // EventLog.WriteEntry(EVENTLOGSource, "Method not available for user " + upn + " (no MSISN requireExistence)", EventLogEntryType.Error, 102);
                 logger.TraceEvent(TraceEventType.Warning, 0, "Mobile ID not available for " + upn + ": mobile attribute not found in AD");
+                Logging.Log.AttrMobileNotFound(upn);
                 return false;
             }
             if (String.IsNullOrEmpty(snOfDN) && cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.requireExistence))
             {
                 logger.TraceEvent(TraceEventType.Information, 0, "Serial Number not found for " + upn);
+                Logging.Log.AttrUserSerialNumberNotFound(upn);
                 return false;
             }
 
@@ -293,6 +307,7 @@ namespace MobileId.Adfs
             AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */);
             ctx.Data.Add(SESSTRIES, 1);
             string logMsg = "svcStatus:" + (int) rsp.Status.Code + ", mssTransId:\"" + rsp.MsspTransId + "\", state:";
+            string upn = identityClaim.Value; // for audit only
 
             switch (rsp.Status.Code)
             {
@@ -301,33 +316,39 @@ namespace MobileId.Adfs
                     ctx.Data.Add(STATE, 3);
                     ctx.Data.Add(MSSPTRXID, rsp.MsspTransId);
                     logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "3");
-                    // TODO: audit
+                    Logging.Log.AuthenticationSucess(0, 3, upn, rsp.MsspTransId);
                     return new AdapterPresentation(AuthView.TransferCtx, cfgAdfs);
                 case ServiceStatusCode.REQUEST_OK:
                     ctx.Data.Add(STATE, 1);
                     ctx.Data.Add(MSSPTRXID, rsp.MsspTransId);
                     ctx.Data.Add(DTBS, req.DataToBeSigned);
                     logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "1");
-                    // TODO: audit
+                    Logging.Log.AuthenticationContinue(0, 1, upn, rsp.MsspTransId);
                     return new AdapterPresentation(AuthView.SignRequestSent, cfgAdfs, req.PhoneNumber, uiTrxId, cfgMid.PollResponseDelaySeconds*1000);
                 case ServiceStatusCode.USER_CANCEL:
                     ctx.Data.Add(STATE, 4);
                     logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "4");
-                    // TODO: audit
+                    Logging.Log.AuthenticationCancel(0, 4, upn, rsp.MsspTransId);
                     return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                 case ServiceStatusCode.EXPIRED_TRANSACTION: // reserved mobileid can return this status immdidately
                 case ServiceStatusCode.PB_SIGNATURE_PROCESS:
                     ctx.Data.Add(STATE, 5);
                     logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "5");
+                    Logging.Log.AuthenticationFail(0, 5, upn, rsp.MsspTransId, Enum.GetName(typeof(ServiceStatusCode), rsp.Status.Code));
                     return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                 default:
                     ctx.Data.Add(STATE, 2);
                     logger.TraceEvent((rsp.Status.Color == ServiceStatusColor.Yellow ? TraceEventType.Warning : TraceEventType.Error),
                         0, logMsg + "2, errMsg:\"" + rsp.Status.Message + "\", errDetail:\"" + rsp.Detail + "\"");
-                    // TODO: audit
+                    if (rsp.Status.Color == ServiceStatusColor.Yellow || rsp.Status.Color == ServiceStatusColor.Green) {
+                        Logging.Log.AuthenticationFail(0, 2, upn, rsp.MsspTransId, Enum.GetName(typeof(ServiceStatusCode), rsp.Status.Code));
+                    } else {
+                        Logging.Log.AuthenticationTechnicalError(0, 2, upn, rsp.MsspTransId, Enum.GetName(typeof(ServiceStatusCode), rsp.Status.Code), (string)rsp.Detail);
+                    }
                     string s = rsp.Status.GetDisplayMessage(ctx.Lcid);
                     if (String.IsNullOrEmpty(s)) {
                         logger.TraceEvent(TraceEventType.Warning, 0, "resource undef for {mssCode:" + (int) rsp.Status.Code + ", lcid:" + ctx.Lcid + "}");
+                        Logging.Log.PresentationWarning("RESOURCE_UNDEF", "{mssCode:" + (int)rsp.Status.Code + ", lcid:" + ctx.Lcid + "}");
                         s = (string)rsp.Detail;
                     };
                     return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp);
@@ -343,8 +364,10 @@ namespace MobileId.Adfs
         // This is where AD FS passes us the config data as a Stream, if such data was supplied at registration of the adapter
         public void OnAuthenticationPipelineLoad(IAuthenticationMethodConfigData configData)
         {
+            int id =  System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
             logger.TraceEvent(TraceEventType.Verbose, 0, "OnAuthenticationPipelineLoad(verAdapter={0}, obj={1})",
-                AuthenticationAdapterMetadata.VERSION, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this));
+                AuthenticationAdapterMetadata.VERSION, id);
+            Logging.Log.LoadAuthProviderStart(id, AuthenticationAdapterMetadata.VERSION);
 
             if (configData.Data != null)
             {
@@ -355,27 +378,30 @@ namespace MobileId.Adfs
                     configData.Data.Position = 0;
                     cfgMid = WebClientConfig.CreateConfig(cfgStr);
                     logger.TraceEvent(TraceEventType.Verbose, 0, "Config.Mid: " + cfgMid);
+                    MobileId.Logging.Log.ConfigInfo(cfgMid.ToString());
                     configData.Data.Position = 0;
                     cfgAdfs = AdfsConfig.CreateConfig(cfgStr);
                     logger.TraceEvent(TraceEventType.Verbose, 0, "Config.Adfs: " + cfgAdfs);
+                    Logging.Log.ConfigInfo(cfgAdfs.ToString());
                 }
                 catch (Exception ex)
                 {
                     logger.TraceData(TraceEventType.Error, 0, ex);
+                    Logging.Log.ConfigError(ex.Message);
                     throw ex;
                 }
             }
             else
             {
+                Logging.Log.ConfigError("config is null");
                 throw new ArgumentNullException("configData is null");
             }
 
-            // AuditLog: log provider name and version
             // Verify EventLog Source
             // TODO: CreateEventSource fails if caller has no enough rights. Add error handling and avoid EventLog.WriteEntry if not present
-            if (!EventLog.SourceExists(EVENTLOGSource))
-                EventLog.CreateEventSource(EVENTLOGSource, EVENTLOGGroup);
-            EventLog.WriteEntry(EVENTLOGSource, "Adapter loaded", EventLogEntryType.Information, 900);
+            //if (!EventLog.SourceExists(EVENTLOGSource))
+            //    EventLog.CreateEventSource(EVENTLOGSource, EVENTLOGGroup);
+            //EventLog.WriteEntry(EVENTLOGSource, "Adapter loaded", EventLogEntryType.Information, 900);
 
             if (!EventLog.SourceExists("MobileId.Client"))
                 EventLog.CreateEventSource("MobileId.Client","Application");
@@ -387,9 +413,10 @@ namespace MobileId.Adfs
         // Called whenever the authentication provider is unloaded from the AD FS pipeline.
         public void OnAuthenticationPipelineUnload()
         {
-            logger.TraceEvent(TraceEventType.Verbose, 0, "OnAuthenticationPipelineUnload(obj={0})",
-                System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this));
-            EventLog.WriteEntry(EVENTLOGSource, "Adapter unloaded", EventLogEntryType.Information, 901);
+            int id = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
+            logger.TraceEvent(TraceEventType.Verbose, 0, "OnAuthenticationPipelineUnload(obj={0})", id);
+            Logging.Log.LoadAuthProviderStop(id);
+            // EventLog.WriteEntry(EVENTLOGSource, "Adapter unloaded", EventLogEntryType.Information, 901);
             _webClient = null; // dispose _webClient
         }
 
@@ -397,6 +424,7 @@ namespace MobileId.Adfs
         public IAdapterPresentation OnError(System.Net.HttpListenerRequest request, ExternalAuthenticationException ex)
         {
             logger.TraceData(TraceEventType.Error, 0, ex);
+            Logging.Log.AuthenticationGeneralError(ex.Message);
             return new AdapterPresentation(AuthView.AuthError, cfgAdfs, ex.Message);
         }
 
@@ -420,13 +448,14 @@ namespace MobileId.Adfs
             //    formAction = "SignOut";
             //};
             logger.TraceEvent(TraceEventType.Verbose, 0, "TryEndAuthentication(act:" + formAction + ", ctx:" + _str(ctx) + ", prf:" + _str(proofData) + ", req:" + _str(request));
+            Logging.Log.TryEndAuthenticationStart(formAction, _str(ctx), _str(proofData), _str(request));
             CultureInfo culture = new CultureInfo(ctx.Lcid);
 
             upn = (string)ctx.Data[USERUPN];
             state = (int) ctx.Data[STATE];
             try
             {
-                //// msspTransId is expected to be absent in some error cases, e.g. error 107
+                // msspTransId is expected to be absent in some error cases, e.g. error 107
                 msspTransId = (string)ctx.Data[MSSPTRXID];
             }
             catch (KeyNotFoundException)
@@ -442,7 +471,7 @@ namespace MobileId.Adfs
                 {
                     case 3:
                         logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_OK: " + logInfo + ", state:" + state);
-                        // TODO: Audit
+                        Logging.Log.AuthenticationSucess(state, (int)ctx.Data[STATE], upn, msspTransId);
                         claims = ClaimsHwToken;
                         return null;
                     case 1:
@@ -451,6 +480,7 @@ namespace MobileId.Adfs
                         break;
                     default:
                         logger.TraceEvent(TraceEventType.Error, 0, "BAD_STATE: " + logInfo + ", state:" + state);
+                        Logging.Log.AuthenticationFail(state, (int)ctx.Data[STATE], upn, msspTransId, "BAD_STATE");
                         return new AdapterPresentation(AuthView.AuthError, cfgAdfs, "action:\"Conitnue\"; state:" + state);
                 }
 
@@ -459,7 +489,7 @@ namespace MobileId.Adfs
                 if ( ageSeconds >= cfgMid.RequestTimeOutSeconds) {
                     ctx.Data[STATE] = 13;
                     logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_TIMEOUT_CONT: " + logInfo + ", state:" + ctx.Data[STATE] + ", age:" + ageSeconds);
-                    // TODO: Audit
+                    Logging.Log.AuthenticationTimeout(state, (int)ctx.Data[STATE], ageSeconds, upn, msspTransId);
                     return
                         ((int)ctx.Data[SESSTRIES] < cfgAdfs.SessionMaxTries) ?
                         new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, "Timeout.") : // TODO: construct new ErrorCode for easier I18N
@@ -480,40 +510,47 @@ namespace MobileId.Adfs
                         case ServiceStatusCode.VALID_SIGNATURE:
                             ctx.Data[STATE] = 10;
                             logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_OK: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
-                            // TODO: Audit
-                            EventLog.WriteEntry(EVENTLOGSource, "Authentication success for " + upn, EventLogEntryType.SuccessAudit, 100);
+                            Logging.Log.AuthenticationSucess(state, (int)ctx.Data[STATE], upn, msspTransId);
+                            // EventLog.WriteEntry(EVENTLOGSource, "Authentication success for " + upn, EventLogEntryType.SuccessAudit, 100);
                             claims = ClaimsHwToken;
                             return null;
                         case ServiceStatusCode.OUSTANDING_TRANSACTION:
                             ctx.Data[STATE] = 11;
                             logger.TraceEvent(TraceEventType.Verbose, 0, "AUTHN_PENDING: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
+                            Logging.Log.AuthenticationPending(state, (int)ctx.Data[STATE], upn, msspTransId);
                             System.Threading.Thread.Sleep(1000);
                             break;
                         case ServiceStatusCode.EXPIRED_TRANSACTION:
                             ctx.Data[STATE] = 13;
                             logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_TIMEOUT_MID: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
-                            // TODO: Audit
+                            Logging.Log.AuthenticationFail(state, (int)ctx.Data[STATE], upn, msspTransId, Enum.GetName(typeof(ServiceStatusCode), rsp.Status.Code));
                             return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                         case ServiceStatusCode.PB_SIGNATURE_PROCESS:
                             ctx.Data[STATE] = 13;
                             logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_SIGN_PROCESS: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
-                            // TODO: Audit
+                            Logging.Log.AuthenticationFail(state, (int)ctx.Data[STATE], upn, msspTransId, Enum.GetName(typeof(ServiceStatusCode), rsp.Status.Code));
                             return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                         case ServiceStatusCode.USER_CANCEL:
                             ctx.Data[STATE] = 14;
                             logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_CANCEL: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
-                            // TODO: Audit
+                            Logging.Log.AuthenticationCancel(state, (int)ctx.Data[STATE], upn, msspTransId);
                             return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                         default:
                             ctx.Data[STATE] = 12;
                             logger.TraceEvent(TraceEventType.Error, 0, "TECH_ERROR: " + logInfo + ", state:" + ctx.Data[STATE] + ", srvStatusCode:" + (int) rsp.Status.Code 
                                 + ", srvStatusMsg:\"" + rsp.Status.Message + "\", srvStatusDetail:\"" + (string) rsp.Detail + "\"");
+                            if (rsp.Status.Color == ServiceStatusColor.Yellow || rsp.Status.Color == ServiceStatusColor.Green) {
+                                Logging.Log.AuthenticationFail(state, (int)ctx.Data[STATE], upn, msspTransId, Enum.GetName(typeof(ServiceStatusCode), rsp.Status.Code));
+                            } else {
+                                Logging.Log.AuthenticationTechnicalError(state, (int)ctx.Data[STATE], upn, msspTransId, Enum.GetName(typeof(ServiceStatusCode), rsp.Status.Code), (string)rsp.Detail);
+                            };
                             return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp);
                     }
                 }; // for-loop
 
                 ctx.Data[STATE] = 13;
                 logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_TIMEOUT_ADFS: " + logInfo + ", state:" + ctx.Data[STATE]);
+                Logging.Log.AuthenticationTimeout(state, (int)ctx.Data[STATE], cfgMid.RequestTimeOutSeconds, upn, msspTransId);
                 return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, "Timeout.");
 
             }
@@ -531,10 +568,12 @@ namespace MobileId.Adfs
                             int ageSeconds = (int)((DateTime.UtcNow.Ticks / 10000 - (long) ctx.Data[SESSBEGIN]) / 1000);
                             if (ageSeconds >= cfgAdfs.SessionTimeoutSeconds) {
                                 logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_SESSION_TIMEOUT: " + logInfo + ", state:" + ctx.Data[STATE] + ", age:" + ageSeconds);
+                                Logging.Log.SessionTimeout(state, (int)ctx.Data[STATE], ageSeconds, upn, msspTransId);
                                 ctx.Data[STATE] = 22;
                             } 
                             else if ((int)ctx.Data[SESSTRIES] >= cfgAdfs.SessionMaxTries) {
                                 logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_SESSION_OVERTRIES: " + logInfo + ", state:" + ctx.Data[STATE]);
+                                Logging.Log.SessionTooMuchRetries(state, (int)ctx.Data[STATE], (int)ctx.Data[SESSTRIES], upn, msspTransId);
                                 ctx.Data[STATE] = 22;
                             };
                             if ((int) ctx.Data[STATE] == 22) {
@@ -562,35 +601,36 @@ namespace MobileId.Adfs
                                 ctx.Data[STATE] = 33;
                                 ctx.Data[MSSPTRXID] = rsp.MsspTransId;
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
-                                // TODO: audit
+                                Logging.Log.AuthenticationSucess(state, (int)ctx.Data[STATE], upn, msspTransId);
                                 return new AdapterPresentation(AuthView.TransferCtx, cfgAdfs);
                             case ServiceStatusCode.REQUEST_OK:
                                 ctx.Data[STATE] = 31;
                                 ctx.Data[MSSPTRXID] = rsp.MsspTransId;
                                 ctx.Data[DTBS] = req.DataToBeSigned;
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
-                                // TODO: audit
+                                Logging.Log.AuthenticationContinue(state, (int)ctx.Data[STATE], upn, msspTransId);
                                 return new AdapterPresentation(AuthView.SignRequestSent, cfgAdfs, req.PhoneNumber, uiTrxId, cfgMid.PollResponseDelaySeconds * 1000);
                             case ServiceStatusCode.USER_CANCEL:
                                 ctx.Data[STATE] = 34;
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
-                                // TODO: audit
+                                Logging.Log.AuthenticationCancel(state, (int)ctx.Data[STATE], upn, msspTransId);
                                 return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                             case ServiceStatusCode.EXPIRED_TRANSACTION:
                             case ServiceStatusCode.PB_SIGNATURE_PROCESS:
                                 ctx.Data[STATE] = 35;
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
-                                // TODO: audit
+                                Logging.Log.AuthenticationFail(state, (int)ctx.Data[STATE], upn, msspTransId, Enum.GetName(typeof(ServiceStatusCode), rsp.Status.Code));
                                 return new AdapterPresentation(AuthView.RetryOrCancel, cfgAdfs, rsp);
                             default:
                                 ctx.Data[STATE] = 32;
                                 logger.TraceEvent((rsp.Status.Color == ServiceStatusColor.Yellow ? TraceEventType.Warning : TraceEventType.Error),
                                     0, logMsg + ctx.Data[STATE] + ", errMsg:\"" + rsp.Status.Message + "\", errDetail:\"" + rsp.Detail + "\"");
-                                // TODO: audit
+                                Logging.Log.AuthenticationTechnicalError(state, (int)ctx.Data[STATE], upn, msspTransId, Enum.GetName(typeof(ServiceStatusCode),rsp.Status.Code), rsp.Detail.ToString());
                                 return new AdapterPresentation(AuthView.AuthError, cfgAdfs, rsp);
                         };
                     default:
                         logger.TraceEvent(TraceEventType.Error, 0, "BAD_STATE: " + logInfo + ", state:" + state);
+                        Logging.Log.AuthenticationFail(state, (int)ctx.Data[STATE], upn, msspTransId, "BAD_STATE");
                         return new AdapterPresentation(AuthView.AuthError, cfgAdfs, "action:\"Retry\"; state:" + state);
                 }
             }
@@ -602,6 +642,7 @@ namespace MobileId.Adfs
             else
             {
                 logger.TraceEvent(TraceEventType.Error, 0, "Unsupported formAction: " + formAction);
+                Logging.Log.AuthenticationBadForm(state, (int)ctx.Data[STATE], upn, msspTransId, formAction);
                 return new AdapterPresentation(AuthView.AuthError, cfgAdfs, new AuthResponseDto(ServiceStatusCode.GeneralClientError));
             }
         }

@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
-using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -117,6 +115,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     logger.TraceEvent(TraceEventType.Verbose, (int)EventId.KeyManagement,
                         "Cert Not Found or Invalid: storeLocation={0}, storeName={1}, fileType='{2}', findValue='{3}'",
                         storeLocation, storeName, x509FindType, findValue);
+                    Logging.Log.KeyManagementCertNotFound(storeLocation, storeName, x509FindType, findValue);
                     return null;
                 }
                 else if (certs.Count > 1)
@@ -124,6 +123,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     logger.TraceEvent(TraceEventType.Verbose, (int)EventId.KeyManagement,
                         "Multiple valid certs found, the 0-th one is used: storeLocation={0}, storeName={1}, fileType='{2}', findValue='{3}'",
                         storeLocation, storeName, x509FindType, findValue);
+                    Logging.Log.KeyManagementMultiCertFound(storeLocation, storeName, x509FindType, findValue);
                     return certs[0];
                 }
                 else
@@ -131,6 +131,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     logger.TraceEvent(TraceEventType.Verbose, (int)EventId.KeyManagement,
                         "Found Cert:  storeLocation={0}, storeName={1}, fileType='{2}', findValue='{3}'",
                         storeLocation, storeName, x509FindType, findValue);
+                    Logging.Log.KeyManagementCertFound(storeLocation, storeName, x509FindType, findValue);
                     return certs[0];
                 };
             }
@@ -138,8 +139,9 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             {
                 logger.TraceData(TraceEventType.Error, (int)EventId.KeyManagement, ex);
                 logger.TraceEvent(TraceEventType.Error, (int)EventId.KeyManagement,
-                    "Technical error in retrieving cert: storeLocation={0}, storeName={1}, findType={2}, findValue={3}", 
+                    "Technical error in retrieving cert: storeLocation={0}, storeName={1}, findType={2}, findValue={3}",
                     storeLocation, storeName, x509FindType, findValue);
+                Logging.Log.KeyManagementStoreError(storeLocation, storeName, x509FindType, findValue, ex.Message);
                 return null;
             }
             finally
@@ -151,6 +153,8 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
 
         private AuthResponseDto _parse500Response(RspStatusAndBody rsp, bool asynchronous)
         {
+            if (Logging.Log.IsDebugEnabled()) Logging.Log.DebugMessage("_parse500Response");
+
             #region Sample SOAP Fault response
             /*  Sample output:
             <?xml version="1.0" encoding="utf-8"?>
@@ -208,13 +212,15 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             catch (NullReferenceException)
             {
                 logger.TraceEvent(TraceEventType.Error, (int)EventId.TransportSoap,
-                    "ParseError: err=NoFaultCode, rspStatus='{0}', rspBody={1}", rsp.StatusCode, rspBody);
+                    "ParseError: err=NoFaultCode, httpStatusCode='{0}', rspBody={1}", rsp.StatusCode, rspBody);
+                Logging.Log.ServerResponseFaultCodeUnknown((int)rsp.StatusCode, Logging.Shorten(rspBody));
                 return new AuthResponseDto(ServiceStatusCode.UnknownResponse, "Missing <" + cursor + "> in SOAP Fault");
             }
             catch (Exception ex)
             {
                 logger.TraceEvent(TraceEventType.Error, (int)EventId.TransportSoap,
                     "ParseError: err=NoFaultCode, rspStatus='{0}', rspBody={1}", rsp.StatusCode, rspBody);
+                Logging.Log.ServerResponseFormatUnknown((int)rsp.StatusCode, cursor, Logging.Shorten(rspBody), ex.Message);
                 return new AuthResponseDto(ServiceStatusCode.UnknownResponse, "Soap Fault parsing error (cursor=<" + cursor + ">): " + ex.Message);
             }
 
@@ -231,12 +237,15 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 {
                     string s = "code='" + sCode + "', reason='" + sReason + "', detail='" + sDetail + "'";
                     logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service, "Unknown Soap Fault Code: " + s);
+                    Logging.Log.ServerResponseStatusCodeOverflow(sCode, sReason, sDetail);
                     return new AuthResponseDto(ServiceStatusCode.UnsupportedStatusCode, s);
                 };
                 if (! asynchronous) {
                     if (/* rc == ServiceStatusCode.EXPIRED_TRANSACTION || */ rc == ServiceStatusCode.OUSTANDING_TRANSACTION || rc == ServiceStatusCode.REQUEST_OK)
                     {
                         logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Illegal Status Code: " + rc);
+                        Logging.Log.ServerResponseStatusCodeIllegal(((int)rc).ToString(),
+                            ((int)ServiceStatusCode.OUSTANDING_TRANSACTION).ToString() + '|' + ((int)ServiceStatusCode.REQUEST_OK).ToString(), Logging.Shorten(rspBody));
                         return new AuthResponseDto(ServiceStatusCode.IllegalStatusCode, rc.ToString());
                     };
                 }
@@ -245,13 +254,16 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             {
                 string s = "code='" + sCode + "', reason='" + sReason + "', detail='" + sDetail + "', portalUrl='" + sPortalUrl + "'";
                 logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service, "Illformed Fault Code: {0}\nResponse Body:\n", s, rspBody);
+                Logging.Log.ServerResponseStatusCodeUnsupported(sCode, sReason, sDetail, Logging.Shorten(rspBody));
                 return new AuthResponseDto(ServiceStatusCode.UnsupportedStatusCode, s);
             };
 
             // SOAP Fault Reason: check for consistency (server's sReason should match the registered ServiceStatus.Message)
-            if (sReason != rc.ToString())
+            if (sReason != rc.ToString()) {
                 logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service,
                     "SOAP Fault Reason ({0}) does not match registered Reason ({1})", sReason, rc.ToString());
+                Logging.Log.ServerResponseStatusTextChanged((int)rc, rc.ToString(), sReason);
+            }
 
             AuthResponseDto rspDto = new AuthResponseDto(rc, sDetail);
             if (sPortalUrl != null)
@@ -261,6 +273,8 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
 
         private AuthResponseDto _parseSignSync200Response(string httpRspBody, AuthRequestDto inDto)
         {
+            if (Logging.Log.IsDebugEnabled()) Logging.Log.DebugMessage2("_parseSignSync200Response", inDto.TransId);
+
             #region Sample Response
             /* Sample success response
             <?xml version="1.0" encoding="UTF-8"?>
@@ -329,8 +343,9 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     s = node.Value;
                 if (s != inDto.TransId)
                 {
-                    string errMsg = String.Format("Mismatched AP_TransId: req.AP_TransId='{0}', rsp.AP_TransId='{1}'", inDto.ApId,s);
-                    logger.TraceEvent(TraceEventType.Error, (int) EventId.Hacking, "{0}, rsp={1}", errMsg, s);
+                    string errMsg = String.Format("Mismatched AP_TransId: req.AP_TransId='{0}', rsp.AP_TransId='{1}'", inDto.TransId,s);
+                    logger.TraceEvent(TraceEventType.Error, (int)EventId.Hacking, "{0}, rsp={1}", errMsg, httpRspBody);
+                    Logging.Log.ServerResponseApTrxIdMismatch(inDto.TransId, s, Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.MismatchedApTransId,errMsg);
                 }
 
@@ -341,6 +356,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 {
                     string errMsg = String.Format("Mismatched MSISDN: req.PhoneNumber='{0}', rsp.PhoneNumber='{1}'",  inDto.PhoneNumber, s);
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Hacking, "{0}, rsp={1}", errMsg, s);
+                    Logging.Log.ServerResponseMsisdnMismatch(inDto.TransId, inDto.PhoneNumber, s, Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.MismatchedMsisdn,errMsg);
                 }
 
@@ -351,14 +367,17 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 {
                     string errMsg = String.Format("error=IllegalStatusCode, expect=500, seen={0}, response={1}", s, httpRspBody);
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, errMsg);
+                    Logging.Log.ServerResponseCodeMismatch(s, Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.IllegalStatusCode, errMsg);
                 }
 
                 // Message
                 cursor = "Message";
                 s = doc.SelectSingleNode("/soapenv:Envelope/soapenv:Body/MSS_SignatureResponse/mss:MSS_SignatureResp/mss:Status/mss:StatusMessage", manager).InnerText;
-                if (s != "SIGNATURE")
+                if (s != "SIGNATURE") {
                     logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service, "Service has changed StatusMessage of code 500 to {0} (expected: 'SIGNATURE')", s);
+                    Logging.Log.ServerResponseStatusTextChanged(500, "SIGNATURE", s);
+                }
 
                 // Signature
                 cursor = "Base64Signature";
@@ -367,6 +386,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 if (String.IsNullOrEmpty(s))
                 {
                     string errMsg = String.Format("error=EmptySignature, response={0}", httpRspBody);
+                    Logging.Log.ServerResponseEmptySignature(Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.UnknownResponse,errMsg);
                 }
                 else
@@ -375,6 +395,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     if (! _isValidSignature(inDto.DataToBeSigned, dtbs_signature))
                     {
                         logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Response Signature is invalid");
+                        Logging.Log.ServerResponseInvalidSignature(inDto.TransId, inDto.PhoneNumber, Logging.Shorten(httpRspBody));
                         return new AuthResponseDto(ServiceStatusCode.InvalidResponseSignature);
                     }
                 }
@@ -385,6 +406,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 if (string.IsNullOrEmpty(msspTransid))
                 {
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Service response has no MSS_TransID");
+                    Logging.Log.ServerResponseEmptyMssTrxId(inDto.TransId, Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.UnknownResponse, "MSS_TransID is missing");
                 };
 
@@ -394,15 +416,17 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 rspDto.MsspTransId = msspTransid;
                 rspDto.Signature = dtbs_signature;
 
-                if (!_verifyUserSerialNumber(inDto, rspDto))
+                if (!_verifyUserSerialNumber(inDto, rspDto)) 
                 {
-                    logger.TraceEvent(TraceEventType.Verbose, 0, rspDto.ToString());
+                    logger.TraceEvent(TraceEventType.Error, 0, rspDto.ToString());
+                    Logging.Log.UserSerialNumberNotAccepted(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, rspDto.UserSerialNumber);
                     return rspDto; // rspDto is modified in this case
                 }
             }
             catch (NullReferenceException ex)
             {
                 logger.TraceData(TraceEventType.Error, (int)EventId.Service, ex);
+                Logging.Log.ServerResponseMissingElement(cursor, Logging.Shorten(httpRspBody));
                 return new AuthResponseDto(ServiceStatusCode.UnknownResponse, "Missing element " + cursor);
             }
 
@@ -414,12 +438,15 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
         // verify serial number, return true on success, false on failure. In case of fasle, outDto is assigned with a new appropriate AuthResponseDto.
         private bool _verifyUserSerialNumber(AuthRequestDto inDto, AuthResponseDto outDto)
         {
+            if (Logging.Log.IsDebugEnabled()) Logging.Log.DebugMessage2("_verifyUserSerialNumber", inDto.TransId);
+
             if (_cfg.UserSerialNumberPolicy == UserSerialNumberPolicy.ignore)
                 return true;
 
             if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.requireExistence)) {
                 if (string.IsNullOrWhiteSpace(inDto.UserSerialNumber)) {
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "User has empty Serial Number in attribute store");
+                    Logging.Log.UserSerialNumberNotInStore(inDto.TransId, inDto.PhoneNumber, outDto.UserSerialNumber);
                     outDto.Status = new ServiceStatus(ServiceStatusCode.UserSerialNumberNotRegistered);
                     return false;
                 }
@@ -428,6 +455,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.match) && (inDto.UserSerialNumber != outDto.UserSerialNumber) ) {
                 string s = "User's Serial Numbers mismatch: mobile=" + inDto.PhoneNumber + ", response='" + outDto.UserSerialNumber + "', store='" + inDto.UserSerialNumber + "'";
                 logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, s);
+                Logging.Log.UserSerialNumberMismatch(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, outDto.UserSerialNumber);
                 outDto.Status = new ServiceStatus(string.IsNullOrWhiteSpace(inDto.UserSerialNumber) ? 
                     ServiceStatusCode.UserSerialNumberNotRegistered : ServiceStatusCode.UserSerialNumberMismatch);
                 return false;
@@ -436,12 +464,14 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.warnMismatch) && (inDto.UserSerialNumber != outDto.UserSerialNumber) ) {
                 logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service, "User's Serial Numbers mismatch: mobile=" + inDto.PhoneNumber + ", response='"
                     + outDto.UserSerialNumber + "', store='" + inDto.UserSerialNumber + "'");
+                Logging.Log.UserSerialNumberMismatch(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, outDto.UserSerialNumber);
             };
             return true;
         }
 
         private AuthResponseDto _parseSignAsync200Response(string httpRspBody, AuthRequestDto inDto)
         {
+            if (Logging.Log.IsDebugEnabled()) Logging.Log.DebugMessage2("_parseSigAsync200Response",inDto.TransId);
             #region Sample Response
             /* Sample success response
             <?xml version="1.0" encoding="UTF-8"?>
@@ -495,8 +525,9 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     s = node.Value;
                 if (s != inDto.TransId)
                 {
-                    string errMsg = String.Format("Mismatched AP_TransId: req.AP_TransId='{0}', rsp.AP_TransId='{1}'", inDto.ApId, s);
+                    string errMsg = String.Format("Mismatched AP_TransId: req.AP_TransId='{0}', rsp.AP_TransId='{1}'", inDto.TransId, s);
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Hacking, "{0}, rsp={1}", errMsg, s);
+                    Logging.Log.ServerResponseApTrxIdMismatch(inDto.TransId, s, Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.MismatchedApTransId, errMsg);
                 }
 
@@ -507,6 +538,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 {
                     string errMsg = String.Format("Mismatched MSISDN: req.PhoneNumber='{0}', rsp.PhoneNumber='{1}'", inDto.PhoneNumber, s);
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Hacking, "{0}, rsp={1}", errMsg, s);
+                    Logging.Log.ServerResponseMsisdnMismatch(inDto.TransId, inDto.PhoneNumber, s, Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.MismatchedMsisdn, errMsg);
                 }
 
@@ -516,6 +548,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 if (string.IsNullOrEmpty(msspTransid))
                 {
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Service response has no MSS_TransID");
+                    Logging.Log.ServerResponseEmptyMssTrxId(inDto.TransId, Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.UnknownResponse, "MSS_TransID is missing");
                 };
 
@@ -532,24 +565,30 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
 
                 if (statusCode == "100")
                 {
-                    if (statusMessage != "REQUEST_OK")
+                    if (statusMessage != "REQUEST_OK") {
                         logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service,
                             "StatusMessage of 100 changed to " + statusMessage + " (expected: REQUEST_OK)");
+                        Logging.Log.ServerResponseStatusTextChanged(100, "REQUEST_OK", statusMessage);
+                    }
                     rspDto = new AuthResponseDto(ServiceStatusCode.REQUEST_OK);
                     rspDto.MsspTransId = msspTransid;
                     return rspDto;
                 }
                 else if (statusCode != "500")
                 {
-                    string errMsg = String.Format("error=IllegalStatusCode, expect=100|500, seen={0}, response={1}", s, httpRspBody);
+                    string errMsg = String.Format("error=IllegalStatusCode, expect=100|500, seen={0}, response={1}", statusCode, httpRspBody);
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, errMsg);
+                    Logging.Log.ServerResponseStatusCodeIllegal(statusCode, "500", Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.IllegalStatusCode, errMsg);
                 }
 
                 // StatusMessage
                 if (statusMessage != "SIGNATURE")
+                {
                     logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service,
                         "Service has changed StatusMessage of code 500 to " + statusMessage + " (expected: 'SIGNATURE')");
+                    Logging.Log.ServerResponseStatusTextChanged(500, "SIGNATURE", statusMessage);
+                }
 
                 // Signature
                 cursor = "Base64Signature";
@@ -566,6 +605,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     if (!_isValidSignature(inDto.DataToBeSigned, dtbs_signature))
                     {
                         logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Response Signature is invalid");
+                        Logging.Log.ServerResponseInvalidSignature(inDto.TransId, inDto.PhoneNumber, Logging.Shorten(httpRspBody));
                         return new AuthResponseDto(ServiceStatusCode.InvalidResponseSignature);
                     }
                 }
@@ -579,6 +619,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 if (!_verifyUserSerialNumber(inDto, rspDto))
                 {
                     logger.TraceEvent(TraceEventType.Verbose, 0, rspDto.ToString());
+                    Logging.Log.UserSerialNumberNotAccepted(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, rspDto.UserSerialNumber);
                     return rspDto; // rspDto is modified in this case
                 }
 
@@ -586,6 +627,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             catch (NullReferenceException ex)
             {
                 logger.TraceData(TraceEventType.Error, (int)EventId.Service, ex);
+                Logging.Log.ServerResponseMissingElement(cursor, Logging.Shorten(httpRspBody));
                 return new AuthResponseDto(ServiceStatusCode.UnknownResponse, "Missing element " + cursor);
             }
 
@@ -603,8 +645,10 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 throw new Exception("No valid SSL client cert found");
             if (!sslClientCert.HasPrivateKey)
                 throw new Exception("Found SSL client cert has no private key");
-            else
+            else {
                 logger.TraceEvent(TraceEventType.Verbose, (int)EventId.KeyManagement, "SSL client cert retrieved");
+                Logging.Log.KeyManagementCertRetrieved("SSL client cert");
+            }
 
             // retrieve CA cert from LocalMachine or CurrentUser
             sslCACert = null;
@@ -615,8 +659,10 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             };
             if (sslCACert == null)
                 throw new Exception("No valid SSL Server Root CA cert found");
-            else
+            else {
                 logger.TraceEvent(TraceEventType.Verbose, (int)EventId.KeyManagement, "SSL Server Root CA cert retrieved");
+                Logging.Log.KeyManagementCertRetrieved("SSL root CA cert");
+            }
 
         }
 
@@ -659,6 +705,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             catch (Exception ex)
             {
                 logger.TraceEvent(TraceEventType.Error, (int)EventId.KeyManagement, "Cannot load certificates. " + ex.Message);
+                Logging.Log.KeyManagementCertException(ex.Message);
                 throw ex;
             }
 
@@ -677,13 +724,17 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             try
             {
                 logger.TraceEvent(TraceEventType.Verbose, (int)EventId.Transport, "Sending HTTP Request");
+                Logging.Log.HttpRequestStart(data.Length);
                 Stream postStream = httpReq.GetRequestStream();
                 postStream.Write(data, 0, data.Length);
                 postStream.Close();
+                Logging.Log.HttpRequestSend();
             }
             catch (WebException ex)
             {
                 logger.TraceData(TraceEventType.Error, (int)EventId.Transport, ex);
+                Logging.Log.HttpRequestException(ex.Message);
+                Logging.Log.HttpRequestStop();
                 return new RspStatusAndBody(true, 0, ex.Message);
             }
 
@@ -692,12 +743,15 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             string httpRspBody = string.Empty;
             try
             {
+                Logging.Log.HttpRequestReceive();
                 using (HttpWebResponse httpRsp = (HttpWebResponse)httpReq.GetResponse())
                 using (StreamReader sr = new StreamReader(httpRsp.GetResponseStream(), Encoding.GetEncoding(httpRsp.CharacterSet)))
                 {
                     httpRspBody = sr.ReadToEnd();
                     logger.TraceEvent(TraceEventType.Verbose, (int)EventId.Transport,
                         "HTTP Response Code: " + httpRsp.StatusCode + "\nHTTP Response Body:\n" + httpRspBody);
+                    if (Logging.Log.IsDebugEnabled()) 
+                        Logging.Log.DebugMessage3("HttpResponseCodeAndBody", httpRsp.StatusCode.ToString(), Logging.Shorten(httpRspBody));
                     return new RspStatusAndBody(false, httpRsp.StatusCode, httpRspBody);
                 }
             }
@@ -708,29 +762,60 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 {
                     string rspBody = new StreamReader(data2).ReadToEnd();
                     logger.TraceEvent(TraceEventType.Verbose, (int)EventId.TransportSoap, "HTTP Response Body:\n" + rspBody);
+                    Logging.Log.HttpResponseException(ex.Message, Logging.Shorten(rspBody));
                     return new RspStatusAndBody(true, response.StatusCode, rspBody);
                 }
+            }
+            finally
+            {
+                Logging.Log.HttpRequestStop();
             }
         }
 
         public AuthResponseDto RequestSignature(AuthRequestDto req, bool asynchronous)
         {
+            // Guid guid = Guid.NewGuid();
+            Logging.Log.MssRequestSignatureStart(/*guid,*/ req.ToString(), asynchronous.ToString());
+            AuthResponseDto ret = requestSignature(req, asynchronous);
+            Logging.Log.MssRequestSignatureStop(/*guid,*/ (int)ret.Status.Code);
+            if (ret.Status.Code == ServiceStatusCode.SIGNATURE || ret.Status.Code == ServiceStatusCode.VALID_SIGNATURE) {
+                Logging.Log.MssRequestSignatureSuccess(req.TransId, ret.MsspTransId, req.PhoneNumber, ret.UserSerialNumber);
+            } else if (ret.Status.Code == ServiceStatusCode.REQUEST_OK) {
+                Logging.Log.MssRequestSignaturePending(req.TransId, ret.MsspTransId, req.PhoneNumber);
+            } else if (ret.Status.Color == ServiceStatusColor.Yellow || ret.Status.Color == ServiceStatusColor.Green) {
+                Logging.Log.MssRequestSignatureWarning((int)ret.Status.Code, req.TransId, ret.MsspTransId, req.PhoneNumber, ret.UserSerialNumber, (string) ret.Detail);
+            } else {
+                Logging.Log.MssRequestSignatureError((int)ret.Status.Code, req.TransId, ret.MsspTransId, req.PhoneNumber, ret.UserSerialNumber, (string)ret.Detail);
+            };
+            return ret;
+        }
+
+        private AuthResponseDto requestSignature(AuthRequestDto req, bool asynchronous)
+        {
             logger.TraceEvent(TraceEventType.Verbose, 0, "RequestSignature(req={0}, async={1})", req, asynchronous);
-            if (!req.IsComplete())
+            if (!req.IsComplete()) {
                 return new AuthResponseDto(ServiceStatusCode.InvalidInput, "Input is incomplete");
+            };
             if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.requireExistence) && string.IsNullOrWhiteSpace(req.UserSerialNumber))
                 return new AuthResponseDto(ServiceStatusCode.UserSerialNumberNotRegistered);
 
             // build request SOAP body
             string httpReqBody = _formatSignReqAsSoap(req, asynchronous);
             logger.TraceEvent(TraceEventType.Verbose, (int)EventId.Transport, "HTTP Request Body (prior to utf8-encoding):\n" + httpReqBody);
+            if (Logging.Log.IsDebugEnabled()) Logging.Log.DebugMessage2("RequestSignatureBody", httpReqBody);
 
             // send request and retrieve SOAP body
             RspStatusAndBody rspSB = _sendRequest("MSS_Signature", httpReqBody);
 
             // parse response status & SOAP body, return parsed response
-            if (! rspSB.ExceptionOccured)
-                return asynchronous ? _parseSignAsync200Response(rspSB.Body, req) : _parseSignSync200Response(rspSB.Body, req);
+            AuthResponseDto outDto;
+            if (!rspSB.ExceptionOccured) {
+                outDto = asynchronous ? _parseSignAsync200Response(rspSB.Body, req) : _parseSignSync200Response(rspSB.Body, req);
+                if (outDto.Status.Code == ServiceStatusCode.SIGNATURE) {
+                    // audit-logged by caller ? // TODO
+                }
+                return outDto;
+            }
             if (rspSB.StatusCode != 0)
                 return _parse500Response(rspSB, asynchronous);
             return new AuthResponseDto(ServiceStatusCode.CommSetupError, rspSB.Body);
@@ -824,8 +909,9 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     s = node.Value;
                 if (s != inDto.TransId)
                 {
-                    string errMsg = String.Format("Mismatched AP_TransId: req.AP_TransId='{0}', rsp.AP_TransId='{1}'", inDto.ApId, s);
+                    string errMsg = String.Format("Mismatched AP_TransId: req.AP_TransId='{0}', rsp.AP_TransId='{1}'", inDto.TransId, s);
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Hacking, "{0}, rsp={1}", errMsg, s);
+                    Logging.Log.ServerResponseApTrxIdMismatch(inDto.TransId, s, Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.MismatchedApTransId, errMsg);
                 }
 
@@ -836,6 +922,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 {
                     string errMsg = String.Format("Mismatched MSISDN: req.PhoneNumber='{0}', rsp.PhoneNumber='{1}'", inDto.PhoneNumber, s);
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Hacking, "{0}, rsp={1}", errMsg, s);
+                    Logging.Log.ServerResponseMsisdnMismatch(inDto.TransId, inDto.PhoneNumber, s, Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.MismatchedMsisdn, errMsg);
                 }
 
@@ -848,19 +935,23 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
 
                 if (statusCode == "504")
                 {
-                    if (statusMsg != "OUTSTANDING_TRANSACTION")
+                    if (statusMsg != "OUTSTANDING_TRANSACTION") {
                         logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service, "Service has changed StatusMessage of code 504 to {0} (expected: 'OUTSTANDING_TRANSACTION')", statusMsg);
+                        Logging.Log.ServerResponseStatusTextChanged(504, "OUTSTANDING_TRANSACTION", statusMsg);
+                    }
                     return new AuthResponseDto(ServiceStatusCode.OUSTANDING_TRANSACTION);
                 }
                 else if (statusCode != "500")
                 {
                     string errMsg = String.Format("error=IllegalStatusCode, expect=500|504, seen={0}, response={1}", s, httpRspBody);
                     logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, errMsg);
+                    Logging.Log.ServerResponseStatusCodeIllegal(statusCode, "500", Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.IllegalStatusCode, errMsg);
                 }
 
                 if (statusMsg != "SIGNATURE") {
                     logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service, "Service has changed StatusMessage of code 500 to {0} (expected: 'SIGNATURE')", statusMsg);
+                    Logging.Log.ServerResponseStatusTextChanged(500, "SIGNATURE", statusMsg);
                 }
 
                 // Signature
@@ -870,6 +961,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 if (String.IsNullOrEmpty(s))
                 {
                     string errMsg = String.Format("error=EmptySignature, response={0}", httpRspBody);
+                    Logging.Log.ServerResponseEmptySignature(Logging.Shorten(httpRspBody));
                     return new AuthResponseDto(ServiceStatusCode.UnknownResponse, errMsg);
                 }
                 else
@@ -878,6 +970,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                     if (!_isValidSignature(inDto.DataToBeSigned, dtbs_signature))
                     {
                         logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Response Signature is invalid");
+                        Logging.Log.ServerResponseInvalidSignature(inDto.TransId, inDto.PhoneNumber, Logging.Shorten(httpRspBody));
                         return new AuthResponseDto(ServiceStatusCode.InvalidResponseSignature);
                     }
                 }
@@ -889,6 +982,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
                 if (!_verifyUserSerialNumber(inDto, rspDto))
                 {
                     logger.TraceEvent(TraceEventType.Verbose, 0, rspDto.ToString());
+                    Logging.Log.UserSerialNumberNotAccepted(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, rspDto.UserSerialNumber);
                     return rspDto; // rspDto is modified in this case
                 }
 
@@ -896,6 +990,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             catch (NullReferenceException ex)
             {
                 logger.TraceData(TraceEventType.Error, (int)EventId.Service, ex);
+                Logging.Log.ServerResponseMissingElement(cursor, Logging.Shorten(httpRspBody));
                 return new AuthResponseDto(ServiceStatusCode.UnknownResponse, "Missing element " + cursor);
             }
 
@@ -912,6 +1007,23 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
         /// <returns>AuthResponseDto object</returns>
         /// <remarks>If you want to let PollSignagure regenerates a AP_TransId, set req.TransId to null.</remarks>
         public AuthResponseDto PollSignature(AuthRequestDto req, string msspTransId)
+        {
+            Logging.Log.MssPollSignatureStart(req.ToString(), msspTransId); // TODO: ActivityId, PerfCounter
+            AuthResponseDto ret = pollSignature(req, msspTransId);
+            Logging.Log.MssPollSignatureStop((int)ret.Status.Code);
+            if (ret.Status.Code == ServiceStatusCode.VALID_SIGNATURE || ret.Status.Code == ServiceStatusCode.SIGNATURE) {
+                Logging.Log.MssPollSignatureSuccess(req.TransId, msspTransId, req.PhoneNumber, req.UserSerialNumber);
+            } else if (ret.Status.Code == ServiceStatusCode.OUSTANDING_TRANSACTION) {
+                Logging.Log.MssPollSignaturePending(req.TransId, msspTransId, req.PhoneNumber);
+            } else if (ret.Status.Color == ServiceStatusColor.Yellow || ret.Status.Color == ServiceStatusColor.Green) {
+                Logging.Log.MssPollSignatureWarning((int)ret.Status.Code, req.TransId, msspTransId, req.PhoneNumber, ret.UserSerialNumber, (string)ret.Detail);
+            } else {
+                Logging.Log.MssPollSignatureError((int)ret.Status.Code, req.TransId, msspTransId, req.PhoneNumber, ret.UserSerialNumber, (string)ret.Detail);
+            }
+            return ret;
+        }
+
+        private AuthResponseDto pollSignature(AuthRequestDto req, string msspTransId)
         {
             logger.TraceEvent(TraceEventType.Verbose, 0, "PollSignature(req={0}, msspTransId={1})", req, Util.Str(msspTransId));
             if (!req.IsComplete())
@@ -956,6 +1068,7 @@ xmlns:v1=""http://uri.etsi.org/TS102204/v1.1.2#"">
                 (req.Instant != null ? req.Instant : Util.CurrentTimeStampString())
             );
             logger.TraceEvent(TraceEventType.Verbose, (int)EventId.Transport, "HTTP Request Body (prior to utf8-encoding):\n" + httpReqBody);
+            Logging.Log.DebugMessage2("HttpReqBody", httpReqBody);
 
             // send SOAP request and read (unparsed) SOAP response
             RspStatusAndBody rspSB = _sendRequest("MSS_StatusQuery", httpReqBody);
@@ -979,8 +1092,10 @@ xmlns:v1=""http://uri.etsi.org/TS102204/v1.1.2#"">
 
         private bool _isValidSignature(string dataToBeSigned, byte[] signature)
         {
+            if (Logging.Log.IsDebugEnabled()) Logging.Log.DebugMessage2("_isValidSignature", dataToBeSigned);
             if (dataToBeSigned == null) {
                 logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "Input dataToBeSigned is null");
+                Logging.Log.ServerResponseMessageError("isValidSignature", "Input dataToBeSigned is null");
                 return false;
             };
 
@@ -995,27 +1110,29 @@ xmlns:v1=""http://uri.etsi.org/TS102204/v1.1.2#"">
                 if (Encoding.UTF8.GetString(dtbs_cms) != dataToBeSigned) {
                     logger.TraceEvent(TraceEventType.Error, (int) EventId.Service, "DataToBeSigned differs: req='" + dataToBeSigned
                         + "', rsp_hex=" + BitConverter.ToString(dtbs_cms));
+                    Logging.Log.ServerResponseMessageError("isValidSignature", "dataToBeSigned differs: req='" + dataToBeSigned
+                        + "', rsp_hex=" + BitConverter.ToString(dtbs_cms));
                     return false;
                 };
                 signedCms.CheckSignature(_cfg.DisableSignatureCertValidation);
                 logger.TraceEvent(TraceEventType.Verbose, (int)EventId.Service, "Signature Verified: signer_0='" 
                     + signedCms.SignerInfos[0].Certificate.Subject + "', noChainValidation=" + _cfg.DisableSignatureCertValidation);
+                if (Logging.Log.IsDebugEnabled()) Logging.Log.DebugMessage3("ValidSignature", _cfg.DisableSignatureCertValidation.ToString(), signedCms.SignerInfos[0].Certificate.Subject);
                 return true;
             }
             catch (Exception e)
             {
                 logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "INVALID_SIGNATURE: " + e.Message);
+                Logging.Log.ServerResponseMessageError("InvalidSiganture", e.Message);
                 return false;
             }
         }
 
         private void _enrichAuthRspDto(AuthResponseDto rspDto)
         {
-            // TODO: parse more attribute from signature
+            // parse more attribute from signature and update rspDto if needed
             return;
         }
-
-        // TODO: add correlation ID in log
 
     }
 

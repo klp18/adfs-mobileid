@@ -5,6 +5,7 @@ if (($args.Count -eq 0) -or ($args.Count -gt 2)) {
   exit 2;
 }
 
+$shortVersion = "11"
 Import-Module -Name "$PSScriptRoot\lib\MidAdfs.psm1" -Force
 
 $global:VerbosePreference = "Continue"
@@ -15,7 +16,7 @@ $global:ErrorActionPreference = "Continue"
 if ($Args[1] -ne $null) {
   $cfgFile = $Args[0];
   $logFile = $Args[1];
-  ($rc = ImportMidAdfsConfig $cfgFile "10") *> $logFile
+  ($rc = ImportMidAdfsConfig $cfgFile $shortVersion) *> $logFile
   if ($rc -eq $true) {
     Write-Output "Import of config file '$cfgFile' succeeded." | Tee-Object -FilePath "$logFile" -Append
     exit 0;
@@ -25,7 +26,7 @@ if ($Args[1] -ne $null) {
   }
 } else {
   $cfgFile = $Args[0];
-  $rc = ImportMidAdfsConfig $cfgFile "10"
+  $rc = ImportMidAdfsConfig $cfgFile $shortVersion
   if ($rc -eq $true) {
     Write-Output "Import of config file '$cfgFile' succeeded."
     exit 0;

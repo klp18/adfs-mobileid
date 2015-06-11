@@ -11,7 +11,7 @@ namespace MobileId.Adfs
         ulong _webClientMaxRequest = 100;
         string _adAttrMobile = "mobile";  // LDAP attribute 0.9.2342.19200300.100.1.41, see https://msdn.microsoft.com/en-us/library/ms677119.aspx
         string _adAttrMidSerialNumber = "serialNumber".ToLower(); // LDAP attribute 2.5.4.5, see https://msdn.microsoft.com/en-us/library/ms679771.aspx
-        string _defaultLoginPrompt = "Login with Mobile ID ({0})?";
+        // string _defaultLoginPrompt = "Login with Mobile ID ({0})?";
         bool _ssoOnCancel = false;
         int _sessionTimeoutSeconds = 300;
         int _sessionMaxTries = 5;
@@ -58,21 +58,21 @@ namespace MobileId.Adfs
             }
         }
 
-        /// <summary>
-        /// Default text to be sent via Mobile ID Service to user's mobile phone.
-        /// The text may contain the place holder {0}, which will be expanded to 5-char random string.
-        /// The text must not exceed the maximum length acceptable by Mobile ID Service (239 chars if encodable in gsm338 charset, 119 otherwise).
-        /// </summary>
-        public string DefaultLoginPrompt {
-            get { return _defaultLoginPrompt; }
-            set { if (!String.IsNullOrEmpty(value)) {
-                int maxLength = MobileId.Util.maxDtbsLength(value);
-                if (value.Length <= (value.Contains("{0}") ? maxLength-2 : maxLength)) {
-                    // {0} will be expaned to a 5-char string
-                    _defaultLoginPrompt = value;
-                };
-            }}
-        }
+        ///// <summary>
+        ///// Default text to be sent via Mobile ID Service to user's mobile phone.
+        ///// The text may contain the place holder {0}, which will be expanded to 5-char random string.
+        ///// The text must not exceed the maximum length acceptable by Mobile ID Service (239 chars if encodable in gsm338 charset, 119 otherwise).
+        ///// </summary>
+        //public string DefaultLoginPrompt {
+        //    get { return _defaultLoginPrompt; }
+        //    set { if (!String.IsNullOrEmpty(value)) {
+        //        int maxLength = MobileId.Util.maxDtbsLength(value);
+        //        if (value.Length <= (value.Contains("{0}") ? maxLength-2 : maxLength)) {
+        //            // {0} will be expaned to a 5-char string
+        //            _defaultLoginPrompt = value;
+        //        };
+        //    }}
+        //}
 
         /// <summary>
         /// If true, the Cancel button in Sign In pages will initiate a Single Sign Out of all sites.
@@ -165,7 +165,7 @@ namespace MobileId.Adfs
                         if (!String.IsNullOrWhiteSpace(s = xml["WebClientMaxRequest"]))
                           cfg.WebClientMaxRequest = ulong.Parse(s);
                         cfg.AdAttrMidSerialNumber = xml["AdAttrMidSerialNumber"];
-                        cfg.DefaultLoginPrompt = xml["DefaultLoginPrompt"]; // TODO: deprecated
+                        // cfg.DefaultLoginPrompt = xml["DefaultLoginPrompt"]; // TODO: deprecated
                         if (!String.IsNullOrWhiteSpace(s = xml["SsoOnCancel"]))
                             cfg.SsoOnCancel = bool.Parse(xml[s]);
                         if (!String.IsNullOrWhiteSpace(s = xml["SessionTimeoutSeconds"]))
@@ -204,11 +204,11 @@ namespace MobileId.Adfs
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder(320); // TODO: update on change
+            StringBuilder sb = new StringBuilder(256); // TODO: update on change
             // sorted alphabetically in name. No output for experimental features.
             sb.Append("{AdAttrMobile: \"").Append(_adAttrMobile);
             sb.Append("\"; AdAttrMidSerialNumber: \"").Append(_adAttrMidSerialNumber);
-            sb.Append("\"; DefaultLoginPrompt: \"").Append(_defaultLoginPrompt);
+            // sb.Append("\"; DefaultLoginPrompt: \"").Append(_defaultLoginPrompt);
             sb.Append("\"; LoginNonceLength: ").Append(_loginNonceLength);
             sb.Append("; SessionMaxTries: ").Append(_sessionMaxTries);
             sb.Append("; SessionTimeoutSeconds: ").Append(_sessionTimeoutSeconds);

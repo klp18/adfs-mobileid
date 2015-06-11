@@ -2,11 +2,11 @@
 #define MyAppName "Mobile ID Authentication Provider for ADFS"
 #define MyAppShortName "Mobile ID for ADFS"
 #define MyAppAbb "MobileIdAdfs"
-#define MyAppVersion "1.0"
-#define MyAppFullVersion "1.0.0.0"
+#define MyAppVersion "1.1"
+#define MyAppFullVersion "1.1.0.0"
 
 [Setup]
-AppId={{609C382B-1D2D-40F5-B2ED-742C603AD022}
+AppId={{609C382B-1D2D-40F5-B2ED-742C603AD023}
 AppName={#MyAppName}
 AppVersion={#MyAppFullVersion}
 AppPublisher=Swisscom Ltd.
@@ -38,7 +38,13 @@ SignedUninstaller=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "..\binaries\*.dll"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
+;Source: "..\binaries\*.dll"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\binaries\*.resources.dll"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\binaries\MobileId.ClientService.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\binaries\MobileId.Adfs.AuthnAdapter.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\binaries\Microsoft.Diagnostics.Tracing.EventSource.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "..\binaries\*.etwManifest.dll"; DestDir: "{app}\lib"; Flags: ignoreversion uninsneveruninstall
+Source: "..\binaries\*.etwManifest.man"; DestDir: "{app}\lib"; Flags: ignoreversion uninsneveruninstall
 Source: "..\AuthnAdapter\spin.min.js"; DestDir: "{app}\lib"
 Source: "..\samples\MobileId.Adfs.AuthnAdapter-template.xml"; DestDir: "{app}"; DestName: "MobileId.Adfs.AuthnAdapter.xml"
 ; Source: "..\Admin\*.psm1"; DestDir: "{app}\lib"

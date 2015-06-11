@@ -160,6 +160,7 @@ ClientBin/
 *.publishsettings
 node_modules/
 *.$$$
+*.bak
 
 # RIA/Silverlight projects
 Generated_Code/
@@ -188,3 +189,16 @@ FakesAssemblies/
 GeneratedArtifacts/
 _Pvt_Extensions/
 ModelManifest.xml
+
+# Mobile ID specific
+Service/MssError.??.resx
+Service/MssError.resx
+AuthnAdapter/WebUI.??.resx
+AuthnAdapter/WebUI.resx
+AuthnAdapter/Microsoft.IdentityServer.Web.dll
+AuthnAdapter/_EventRegisterUsersGuide.docx
+AuthnAdapter/_EventSourceUsersGuide.docx
+Service/_EventRegisterUsersGuide.docx
+Service/_EventSourceUsersGuide.docx
+binaries/Microsoft.Diagnostics.Tracing.EventSource.dll
+

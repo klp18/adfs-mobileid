@@ -99,6 +99,11 @@ $MidDlls = @(
   "it\MobileId.ClientService.resources.dll"
 );
 
+# DLLs in $InstallOnlyMidDlls will not be removed by installer. They may be used by non-Mobile ID applications.
+$InstallOnlyMidDlls = @(
+  "Microsoft.Diagnostics.Tracing.EventSource.dll"
+);
+
 # Remove the specified Mobile ID version completely from ADFS policy, ADFS provider and GAC.
 # return ($res, @undoActions), where $res is  true on success, false on eror.
 function UnregisterMobileID($version) {
@@ -150,6 +155,9 @@ function UnregisterMobileID($version) {
   } else {
     Write-Verbose "# $midVersion not in ADFS registry. NEXT.";
   }
+
+  # Write-Verbose "# remove Mobile ID from ETW";
+  # _unregisterEtw;
 
   Write-Verbose "# remove Mobile ID DLLs from GAC";
   if ( $null -eq ([AppDomain]::CurrentDomain.GetAssemblies() |? { $_.FullName -eq "System.EnterpriseServices, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" }) ) {
@@ -256,6 +264,41 @@ function _replaceSpinJs($filePath, $schemeName) {
   };
 }
 
+function _registerEtw() {
+    $exe = "wevtutil.exe";
+    foreach ($dll in @('MobileId.ClientService.Swisscom-MobileID-Client', 'MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs')) {
+      $dll = "$pwd\lib\$dll.etwManifest";
+      Write-Debug "Start-Process -FilePath ""$exe"" -ArgumentList @(""um"",""""""$dll.man"""""") -PassThru -Wait";
+      $p = Start-Process -FilePath $exe -ArgumentList @("um", """$dll.man""") -PassThru -Wait;
+      if ($p.ExitCode -ne 0) {
+        Write-Error ("$exe um $dll.man exit code " + $p.ExitCode)
+      } else {
+        Write-Debug "uninstall exitCode=0";
+      }
+      Write-Debug ("Start-Process -FilePath ""$exe"" -ArgumentList @(""im"", ""$dll.man"", ""/rf:$dll.dll"", ""/mf:$dll.dll"") -PassThrus -Wait");
+      $p = Start-Process -FilePath $exe -ArgumentList @("im", """$dll.man""", "/rf:""$dll.dll""", "/mf:""$dll.dll""") -PassThru -Wait;
+      if ($p.ExitCode -ne 0) {
+        Write-Error ("'$exe im $dll' exit code " + $p.ExitCode)
+      } else {
+        Write-Debug "install exitCode=0";
+      }
+    };
+    return;
+}
+
+# function _unregisterEtw() {
+#     foreach ($dll in @('MobileId.ClientService.*.etwManifest')) {
+#      Write-Debug "Start-Process -FilePath ""wevtutil.exe"" -ArgumentList ""um"",""$pwd\lib\$dll.man""";
+#      $p = Start-Process -FilePath "wevtutil.exe" -ArgumentList "um","$pwd\lib\$dll.man" -PassThru -Wait;
+#      if ($p.ExitCode -ne 0) {
+#        Write-Error ("wevutil um $dll exit code" + $p.ExitCode)
+#      } else {
+#        Write-Debug "ExitCode=0";
+#      }
+#    };
+#    return;
+# }
+
 # return status (true on success, false on failure)
 function RegisterMobileID($version,$versionQdot,$publicKeyToken) {
   if (! (isAdfsRoleInstalled($true)) ) {
@@ -284,6 +327,13 @@ function RegisterMobileID($version,$versionQdot,$publicKeyToken) {
     Write-Debug "GacInstall('$pwd\lib\$dll')";
     $publish.GacInstall("$pwd\lib\$dll");
   };
+  foreach ($dll in $InstallOnlyMidDlls) {
+    Write-Debug "GacInstall('$pwd\lib\$dll')";
+    $publish.GacInstall("$pwd\lib\$dll");
+  };
+
+  Write-Verbose "# register Mobile ID in ETW";
+  _registerEtw;
 
   Write-Verbose "# register Mobile ID v$version to ADFS";
   $typeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=$versionQdot, Culture=neutral, PublicKeyToken=$publicKeyToken, processorArchitecture=MSIL";

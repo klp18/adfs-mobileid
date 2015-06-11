@@ -30,7 +30,7 @@ namespace MobileId
         bool _enableSubscriberInfo = false;
         bool _ignoreUserSn = false;
         bool _ignoreUserSnChange = false;
-        int _pollResponseDelaySeconds = 15;
+        int _pollResponseDelaySeconds = 10;
         int _pollResponseIntervalSeconds = 1;
         UserSerialNumberPolicy _userSericalNumberPolicy = UserSerialNumberPolicy.ignore;
         bool _disableSignatureValidation = false;
@@ -251,7 +251,7 @@ namespace MobileId
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder(512);  // TODO: update on change
+            StringBuilder sb = new StringBuilder(768);  // TODO: update on change
             // sorted alphabetically in name
             sb.Append("{ApId:\"").Append(_apId);
             sb.Append("\", DtbsPrefix:\"").Append(_dtbsPrefix);

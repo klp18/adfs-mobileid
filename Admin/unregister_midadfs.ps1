@@ -7,10 +7,12 @@ $global:DebugPreference = "Continue"
 $global:WarningPreference = "Continue"
 $global:ErrorActionPreference = "Continue"
 
+$shortVersion = "11";
+
 if ($Args[0] -ne $null) {
   $logFile = $Args[0];
   Get-Date *>> $logFile
-  ($rc = UnregisterMobileID "10") *> $logFile
+  ($rc = UnregisterMobileID $shortVersion) *> $logFile
   if ($rc -eq $true) {
     Write-Output "UnRegisterMobileID succeeded." | Tee-Object -FilePath $logFile -Append
     exit 0;
@@ -19,7 +21,7 @@ if ($Args[0] -ne $null) {
     exit 1;
   }
 } else {
-  $rc = UnregisterMobileID "10"
+  $rc = UnregisterMobileID $shortVersion
   if ($rc -eq $true) {
     Write-Output "UnRegisterMobileID succeeded."
     exit 0;

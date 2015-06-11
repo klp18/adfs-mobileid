@@ -7,9 +7,12 @@ $global:DebugPreference = "Continue"
 $global:WarningPreference = "Continue"
 $global:ErrorActionPreference = "Continue"
 
+$shortVersion = "11"
+$fullVersion = "1.1.0.0"
+
 if ($Args[0] -ne $null) {
   $logFile = $Args[0];
-  ($rc = RegisterMobileID "10" "1.0.0.0" "2d8af5277000f5f0") *> $logFile
+  ($rc = RegisterMobileID $shortVersion $fullVersion "2d8af5277000f5f0") *> $logFile
   if ($rc -eq $true) {
     Write-Output "RegisterMobileID succeeded." | Tee-Object -FilePath $logFile -Append
     exit 0;
@@ -18,7 +21,7 @@ if ($Args[0] -ne $null) {
     exit 1;
   }
 } else {
-  $rc = RegisterMobileID "10" "1.0.0.0" "2d8af5277000f5f0"
+  $rc = RegisterMobileID $shortVersion $fullVersion "2d8af5277000f5f0"
   if ($rc -eq $true) {
     Write-Output "RegisterMobileID succeeded."
     exit 0;
