@@ -398,13 +398,14 @@ namespace MobileId.Adfs
             }
 
             // Verify EventLog Source
-            // TODO: CreateEventSource fails if caller has no enough rights. Add error handling and avoid EventLog.WriteEntry if not present
             //if (!EventLog.SourceExists(EVENTLOGSource))
             //    EventLog.CreateEventSource(EVENTLOGSource, EVENTLOGGroup);
             //EventLog.WriteEntry(EVENTLOGSource, "Adapter loaded", EventLogEntryType.Information, 900);
 
+            // The EventSources are created by the installer normally. If Mobile ID for ADFS was installed manually and
+            // EventSource were not created, we will repair it here. It requires administrative privileges though.
             if (!EventLog.SourceExists("MobileId.Client"))
-                EventLog.CreateEventSource("MobileId.Client","Application");
+                EventLog.CreateEventSource("MobileId.Client", "Application");
 
             if (!EventLog.SourceExists("MobileId.Adfs"))
                 EventLog.CreateEventSource("MobileId.Adfs", "Application");

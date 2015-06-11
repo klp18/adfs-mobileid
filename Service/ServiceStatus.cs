@@ -53,6 +53,10 @@ namespace MobileId
                 case ServiceStatusCode.NO_KEY_FOUND:
                 case ServiceStatusCode.NO_CERT_FOUND:
                 case ServiceStatusCode.EXPIRED_TRANSACTION:
+                case ServiceStatusCode.PB_SIGNATURE_PROCESS:
+                case ServiceStatusCode.REVOKED_CERTIFICATE:
+                case ServiceStatusCode.INVALID_SIGNATURE:
+                case ServiceStatusCode.OTA_ERROR:
                 case ServiceStatusCode.UserSerialNumberNotRegistered:
                 case ServiceStatusCode.UserSerialNumberMismatch:
                     return ServiceStatusColor.Yellow;

@@ -811,9 +811,6 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             AuthResponseDto outDto;
             if (!rspSB.ExceptionOccured) {
                 outDto = asynchronous ? _parseSignAsync200Response(rspSB.Body, req) : _parseSignSync200Response(rspSB.Body, req);
-                if (outDto.Status.Code == ServiceStatusCode.SIGNATURE) {
-                    // audit-logged by caller ? // TODO
-                }
                 return outDto;
             }
             if (rspSB.StatusCode != 0)

@@ -299,6 +299,16 @@ function _registerEtw() {
 #    return;
 # }
 
+function _createEventSource() {
+  $eventSources = @("MobileId.Client","MobileId.Adfs");
+  foreach($e in $eventSources) {
+    if ([System.Diagnostics.EventLog]::SourceExists($e) -eq $false) {
+        Write-Debug "creating eventsource $e in Application Log";
+        [System.Diagnostics.EventLog]::CreateEventSource($e,"Application");
+    }
+  }
+}
+
 # return status (true on success, false on failure)
 function RegisterMobileID($version,$versionQdot,$publicKeyToken) {
   if (! (isAdfsRoleInstalled($true)) ) {
@@ -334,6 +344,9 @@ function RegisterMobileID($version,$versionQdot,$publicKeyToken) {
 
   Write-Verbose "# register Mobile ID in ETW";
   _registerEtw;
+
+  Write-Verbose "# create non-existing EventSource in EventLog";
+  _createEventSource;
 
   Write-Verbose "# register Mobile ID v$version to ADFS";
   $typeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=$versionQdot, Culture=neutral, PublicKeyToken=$publicKeyToken, processorArchitecture=MSIL";
