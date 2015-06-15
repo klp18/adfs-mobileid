@@ -30,8 +30,8 @@ mss_501 = Errore durante la conferma. Riprovi di nuovo e se l'errore persiste ri
 
 mss_503 = Errore durante la conferma. Riprovi di nuovo e se l'errore persiste rivolgersi all'operatore di rete mobile.
 
-# TODO: translate next line
-mss_-404 = The serial number of your Mobile ID certificate is not registered.
+# The serial number of your Mobile ID certificate is not registered.
+mss_-404 = Errore sul numero di serie del Mobile ID. Contattare il vostro amministratore di sistema.
 
-# TODO: translate next line
-mss_-403 = The serial number of your Mobile ID certificate differs from the registered one.
+# The serial number of your Mobile ID certificate differs from the registered one.
+mss_-403 = Errore sul numero di serie del Mobile ID. Contattare il vostro amministratore di sistema.
