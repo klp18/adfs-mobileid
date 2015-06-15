@@ -14,5 +14,5 @@
   SeedApTransId=""
   PollResponseDelaySeconds="2"
   PollResponseIntervalSeconds="1"
-  UserSerialNumberPolicy="match, warnMisMatch, requireExistence"
+  UserSerialNumberPolicy="match, warnMisMatch, allowAbsence"
  />

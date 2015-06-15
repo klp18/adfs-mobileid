@@ -2,5 +2,5 @@
 <mobileIdClient
   AP_ID = "http://changeme.swisscom.ch"
   SslCertThumbprint="AB cd 1 2 "
-  UserSerialNumberPolicy="warnMisMatch, requireExistence"
+  UserSerialNumberPolicy="warnMisMatch, allowAbsence"
  />

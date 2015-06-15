@@ -59,6 +59,9 @@ namespace MobileId
                 case ServiceStatusCode.OTA_ERROR:
                 case ServiceStatusCode.UserSerialNumberNotRegistered:
                 case ServiceStatusCode.UserSerialNumberMismatch:
+                case ServiceStatusCode.UserCertAbsent:
+                case ServiceStatusCode.UserCertNotYetValid:
+                case ServiceStatusCode.UserCertExpired:
                     return ServiceStatusColor.Yellow;
 
                  // the rest is red

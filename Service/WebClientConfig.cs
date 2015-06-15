@@ -32,7 +32,7 @@ namespace MobileId
         bool _ignoreUserSnChange = false;
         int _pollResponseDelaySeconds = 10;
         int _pollResponseIntervalSeconds = 1;
-        UserSerialNumberPolicy _userSericalNumberPolicy = UserSerialNumberPolicy.ignore;
+        UserSerialNumberPolicy _userSericalNumberPolicy = UserSerialNumberPolicy.allowAbsence | UserSerialNumberPolicy.allowMismatch;
         bool _disableSignatureValidation = false;
         bool _disableSignatureCertValidation = false;
 
@@ -281,10 +281,11 @@ namespace MobileId
     public enum UserSerialNumberPolicy
     {
         /// <summary>
-        /// Serial numbers are silently ignored. A user can be authenticated regardless of his serial number.
+        /// a user can be authenticated if the user has a serial number in attribute store that matches the one in MID server response.
+        /// Note that a valid serial number in MID server response can never be empty (an empty serial number in MID server response 
+        /// would be considered as invalid response and would result in authentication failure).
         /// </summary>
-        /// <remarks>This is the default setting.</remarks>
-        ignore = 0,
+        match = 0,
 
         /// <summary>
         /// Write a warning message in log if a mismatch of serial number is detected.
@@ -292,16 +293,16 @@ namespace MobileId
         warnMismatch = 1,
 
         /// <summary>
-        /// a user can be authenticated only if the user has an non-empty serial number in his attribute store (e.g. Active Directory).
+        /// a user can also be authenticated if the user has no or an empty serial number in his/her attribute store (e.g. Active Directory).
         /// A serial number consisting of only white spaces is considered as "empty" in this context.
         /// </summary>
-        requireExistence = 2,
+        allowAbsence = 2,
 
         /// <summary>
-        /// a user can be authenticated only if his/her serial number matches the one in the user's attribute store (e.g. Active Directory).
+        /// a user can also be authenticated if his/her serial number does not matches the one in the user's attribute store (e.g. Active Directory).
         /// The string comparison is case sensitive.
         /// </summary>
-        match = 4
+        allowMismatch = 4,
     }
 
 }

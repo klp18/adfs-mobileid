@@ -203,6 +203,9 @@ namespace MobileId.Adfs
             string upn = identityClaim.Value; // UPN Claim from the mandatory Primary Authentication
             string msisdn = null;
             string snOfDN = null;
+            bool needLoadSerialNumber = cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.warnMismatch) || 
+                ! cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowAbsence) ||
+                ! cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowMismatch);
 
             // Search for the user
             try
@@ -213,7 +216,7 @@ namespace MobileId.Adfs
                     ds.SearchScope = SearchScope.Subtree;
                     ds.Filter = "(&(objectClass=user)(objectCategory=person)(userPrincipalName=" + upn + "))";
                     ds.PropertiesToLoad.Add(cfgAdfs.AdAttrMobile);
-                    if (cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore)
+                    if (needLoadSerialNumber)
                         ds.PropertiesToLoad.Add(cfgAdfs.AdAttrMidSerialNumber);
 
                     SearchResult result = ds.FindOne();
@@ -229,7 +232,7 @@ namespace MobileId.Adfs
                                     msisdn = propertyValue.ToString();
                                     ctx.Data.Add(MSISDN, msisdn); //  let it blow up if MSISDN is ambiguous
                                 }
-                                if ((cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore) &&
+                                if (needLoadSerialNumber &&
                                     (thisProperty.ToLower(System.Globalization.CultureInfo.InvariantCulture) == cfgAdfs.AdAttrMidSerialNumber))
                                 {
                                     snOfDN = propertyValue.ToString();
@@ -273,7 +276,7 @@ namespace MobileId.Adfs
                 Logging.Log.AttrMobileNotFound(upn);
                 return false;
             }
-            if (String.IsNullOrEmpty(snOfDN) && cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.requireExistence))
+            if (String.IsNullOrEmpty(snOfDN) && ! cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowAbsence))
             {
                 logger.TraceEvent(TraceEventType.Information, 0, "Serial Number not found for " + upn);
                 Logging.Log.AttrUserSerialNumberNotFound(upn);
@@ -293,6 +296,10 @@ namespace MobileId.Adfs
             logger.TraceEvent(TraceEventType.Verbose, 0, "BeginAuthentication(claim=" + _str(identityClaim) + ", req=" + _str(reqHttp) + ", ctx=" + _str(ctx) + ")");
             CultureInfo culture = new CultureInfo(ctx.Lcid);
             string uiTrxId = MobileId.Util.BuildRandomBase64Chars(cfgAdfs.LoginNonceLength);
+            bool needCheckUserSerialNumber = 
+                ! cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowAbsence) ||
+                ! cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowMismatch) ||
+                cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.warnMismatch) ;
 
             // Start the asynchrous login
             AuthRequestDto req = new AuthRequestDto();
@@ -300,7 +307,7 @@ namespace MobileId.Adfs
             req.UserLanguage = (UserLanguage)Enum.Parse(typeof(UserLanguage), resMgr.GetString(RES_LANG, culture));
             req.DataToBeSigned = _buildMobileIdLoginPrompt(req.UserLanguage, culture, uiTrxId);
             req.TimeOut = cfgMid.RequestTimeOutSeconds;
-            if (cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore && ctx.Data.ContainsKey(UKEYSN) )
+            if (needCheckUserSerialNumber /* cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore */ && ctx.Data.ContainsKey(UKEYSN))
                 req.UserSerialNumber = (string)ctx.Data[UKEYSN];
             ctx.Data.Add(AUTHBEGIN, DateTime.UtcNow.Ticks/10000);
             ctx.Data.Add(SESSBEGIN, DateTime.UtcNow.Ticks/10000);
@@ -500,7 +507,12 @@ namespace MobileId.Adfs
                 AuthRequestDto req = new AuthRequestDto();
                 req.PhoneNumber = (string)ctx.Data[MSISDN];
                 req.DataToBeSigned = (string)ctx.Data[DTBS];
-                if (cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore && ctx.Data.ContainsKey(UKEYSN))
+                bool needCheckUserSerialNumber =
+                    !cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowAbsence) ||
+                    !cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowMismatch) ||
+                    cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.warnMismatch);
+
+                if (needCheckUserSerialNumber /* cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore */ && ctx.Data.ContainsKey(UKEYSN))
                     req.UserSerialNumber = (string)ctx.Data[UKEYSN];
                 AuthResponseDto rsp;
                 for (int i = ageSeconds; i <= cfgMid.RequestTimeOutSeconds; i+= cfgMid.PollResponseIntervalSeconds ) { 
@@ -588,7 +600,11 @@ namespace MobileId.Adfs
                         string uiTrxId = Util.BuildRandomBase64Chars(cfgAdfs.LoginNonceLength);
                         req.DataToBeSigned = _buildMobileIdLoginPrompt(req.UserLanguage, culture, uiTrxId);
                         req.TimeOut = cfgMid.RequestTimeOutSeconds;
-                        if (cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore && ctx.Data.ContainsKey(UKEYSN))
+                        bool needCheckUserSerialNumber =
+                            !cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowAbsence) ||
+                            !cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowMismatch) ||
+                            cfgMid.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.warnMismatch);
+                        if (needCheckUserSerialNumber /* cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore */ && ctx.Data.ContainsKey(UKEYSN))
                             req.UserSerialNumber =  (string)ctx.Data[UKEYSN];
                         ctx.Data[AUTHBEGIN] = DateTime.UtcNow.Ticks/10000;
                         AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */);

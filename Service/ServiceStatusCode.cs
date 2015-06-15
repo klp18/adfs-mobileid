@@ -19,6 +19,21 @@ namespace MobileId
     public enum ServiceStatusCode
     {
         /// <summary>
+        /// The server response does not contain user's certificate in the signature.
+        /// </summary>
+        UserCertAbsent = -508,
+
+        /// <summary>
+        /// The user's certificate has already expired according to the time at the client side.
+        /// </summary>
+        UserCertExpired = -507,
+
+        /// <summary>
+        /// The user's certificate is not yet valid according to the time at the client side.
+        /// </summary>
+        UserCertNotYetValid = -506,
+
+        /// <summary>
         /// The signature in Response is invalid or cannot be verified.
         /// </summary>
         /// <remarks>
@@ -57,7 +72,7 @@ namespace MobileId
         UserSerialNumberNotRegistered = -404,
 
         /// <summary>
-        /// User's Serial Number is not registered in the Application Provider.
+        /// User's Serial Number in MID Server Response does not match the one registered by the Application Provider.
         /// </summary>
         UserSerialNumberMismatch = -403,
 

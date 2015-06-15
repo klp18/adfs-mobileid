@@ -199,7 +199,7 @@ namespace MobileId
 
         // User Attributes
 
-        [Event(39, Keywords = Keywords.AttrStore, Level = EventLevel.Error, Channel = EventChannel.Admin,
+        [Event(39, Keywords = Keywords.AttrStore, Level = EventLevel.Warning, Channel = EventChannel.Admin,
             Message = "Invalid Serial Number: apTransId='{0}', phoneNumber='{1}', userSerialNumberInStore='{2}', userSerialNumberInResponse='{3}'")]
         public void UserSerialNumberNotAccepted(string ApTransId, string PhoneNumber, string UserSerialNumberRequest, string UserSerialNumberResponse) {
             WriteEvent(39, ApTransId, PhoneNumber, _s(UserSerialNumberRequest), _s(UserSerialNumberResponse)); }

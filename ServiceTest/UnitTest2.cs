@@ -32,14 +32,14 @@ namespace ServiceTest
             Assert.AreEqual("", cfg.SeedApTransId, "SeedApTransId");
             Assert.AreEqual(2, cfg.PollResponseDelaySeconds, "PollResponseDelaySeconds");
             Assert.AreEqual(1, cfg.PollResponseIntervalSeconds, "PollResponseIntervalSeconds");
-            Assert.AreEqual(7, (int)cfg.UserSerialNumberPolicy, "UserSerialNumberPolicy");
+            Assert.AreEqual(3, (int)cfg.UserSerialNumberPolicy, "UserSerialNumberPolicy");
         }
 
         [TestMethod]
         public void T12_WebClientAuthConfig()
         {
             WebClientConfig cfg = WebClientConfig.CreateConfigFromFile("WebClientAuthConfig03.xml");
-            Assert.AreEqual(UserSerialNumberPolicy.warnMismatch | UserSerialNumberPolicy.requireExistence, 
+            Assert.AreEqual(UserSerialNumberPolicy.warnMismatch | UserSerialNumberPolicy.allowAbsence, 
                 cfg.UserSerialNumberPolicy, "UserSerialNumberPolicy");
         }
 
@@ -47,7 +47,7 @@ namespace ServiceTest
         public void T13_WebClientAuthConfig()
         {
             WebClientConfig cfg = WebClientConfig.CreateConfigFromFile("WebClientAuthConfig04.xml");
-            Assert.AreEqual(UserSerialNumberPolicy.warnMismatch | UserSerialNumberPolicy.requireExistence,
+            Assert.AreEqual(UserSerialNumberPolicy.warnMismatch | UserSerialNumberPolicy.allowAbsence,
                 cfg.UserSerialNumberPolicy, "UserSerialNumberPolicy");
         }
     }

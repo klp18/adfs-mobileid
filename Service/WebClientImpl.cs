@@ -435,38 +435,79 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
 
         }
 
+        private bool _isUserCertTimeValid(AuthRequestDto inDto, AuthResponseDto outDto)
+        {
+            X509Certificate2 userCert = outDto.UserCertificate;
+            if (userCert == null)
+            {
+                Logging.Log.MssRequestSignatureWarning((int)ServiceStatusCode.UserCertAbsent, inDto.TransId, outDto.MsspTransId,
+                    inDto.PhoneNumber, inDto.PhoneNumber, outDto.ToString());
+                outDto.Status = new ServiceStatus(ServiceStatusCode.UserCertAbsent);
+                return false;
+            };
+            DateTime now = DateTime.Now;
+            if (now < userCert.NotBefore)
+            {
+                Logging.Log.MssRequestSignatureWarning((int)ServiceStatusCode.UserCertNotYetValid, inDto.TransId, outDto.MsspTransId,
+                    inDto.PhoneNumber, inDto.UserSerialNumber, Convert.ToBase64String(userCert.RawData));
+                outDto.Status = new ServiceStatus(ServiceStatusCode.UserCertNotYetValid);
+                return false;
+            }
+            else if (now > userCert.NotAfter)
+            {
+                Logging.Log.MssRequestSignatureWarning((int)ServiceStatusCode.UserCertExpired, inDto.TransId, outDto.MsspTransId,
+                    inDto.PhoneNumber, inDto.UserSerialNumber, Convert.ToBase64String(userCert.RawData));
+                outDto.Status = new ServiceStatus(ServiceStatusCode.UserCertExpired);
+                return false;
+            }
+            return true;
+        }
+
         // verify serial number, return true on success, false on failure. In case of fasle, outDto is assigned with a new appropriate AuthResponseDto.
         private bool _verifyUserSerialNumber(AuthRequestDto inDto, AuthResponseDto outDto)
         {
             if (Logging.Log.IsDebugEnabled()) Logging.Log.DebugMessage2("_verifyUserSerialNumber", inDto.TransId);
 
-            if (_cfg.UserSerialNumberPolicy == UserSerialNumberPolicy.ignore)
-                return true;
+            if (string.IsNullOrEmpty(outDto.UserSerialNumber)) {
+                Logging.Log.UserSerialNumberNotAccepted(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, outDto.UserSerialNumber);
+                return false;
+            }
 
-            if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.requireExistence)) {
-                if (string.IsNullOrWhiteSpace(inDto.UserSerialNumber)) {
-                    logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "User has empty Serial Number in attribute store");
-                    Logging.Log.UserSerialNumberNotInStore(inDto.TransId, inDto.PhoneNumber, outDto.UserSerialNumber);
+            if (_cfg.DisableSignatureValidation || _cfg.DisableSignatureCertValidation) { // verify the time-validity of user cert, if not yet done
+                if (!_isUserCertTimeValid(inDto, outDto)) {
+                    return false;
+                }
+            }
+
+            UserSerialNumberPolicy policy = _cfg.UserSerialNumberPolicy; // in future, we allow a requester to specify the desired policy and defaults to configured policy
+
+            if (outDto.UserSerialNumber == inDto.UserSerialNumber) {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(inDto.UserSerialNumber)) {
+                logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "User has empty Serial Number in attribute store");
+                if (policy.HasFlag(UserSerialNumberPolicy.allowAbsence))
+                {
+                    if (policy.HasFlag(UserSerialNumberPolicy.warnMismatch)) Logging.Log.UserSerialNumberNotInStore(inDto.TransId, inDto.PhoneNumber, outDto.UserSerialNumber);
+                    return true;
+                } else {
+                    Logging.Log.UserSerialNumberNotAccepted(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, outDto.UserSerialNumber);
                     outDto.Status = new ServiceStatus(ServiceStatusCode.UserSerialNumberNotRegistered);
                     return false;
                 }
             }
 
-            if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.match) && (inDto.UserSerialNumber != outDto.UserSerialNumber) ) {
-                string s = "User's Serial Numbers mismatch: mobile=" + inDto.PhoneNumber + ", response='" + outDto.UserSerialNumber + "', store='" + inDto.UserSerialNumber + "'";
-                logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, s);
+            logger.TraceEvent(TraceEventType.Error, (int)EventId.Service, "User's Serial Numbers mismatch: mobile=" + inDto.PhoneNumber + ", response='" + outDto.UserSerialNumber + "', store='" + inDto.UserSerialNumber + "'");
+            if (policy.HasFlag(UserSerialNumberPolicy.allowMismatch))
+            {
+                if (policy.HasFlag(UserSerialNumberPolicy.warnMismatch)) Logging.Log.UserSerialNumberMismatch(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, outDto.UserSerialNumber);
+                return true;
+            } else {
                 Logging.Log.UserSerialNumberMismatch(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, outDto.UserSerialNumber);
-                outDto.Status = new ServiceStatus(string.IsNullOrWhiteSpace(inDto.UserSerialNumber) ? 
-                    ServiceStatusCode.UserSerialNumberNotRegistered : ServiceStatusCode.UserSerialNumberMismatch);
+                outDto.Status = new ServiceStatus(ServiceStatusCode.UserSerialNumberMismatch);
                 return false;
-            };
-
-            if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.warnMismatch) && (inDto.UserSerialNumber != outDto.UserSerialNumber) ) {
-                logger.TraceEvent(TraceEventType.Warning, (int)EventId.Service, "User's Serial Numbers mismatch: mobile=" + inDto.PhoneNumber + ", response='"
-                    + outDto.UserSerialNumber + "', store='" + inDto.UserSerialNumber + "'");
-                Logging.Log.UserSerialNumberMismatch(inDto.TransId, inDto.PhoneNumber, inDto.UserSerialNumber, outDto.UserSerialNumber);
-            };
-            return true;
+            }
         }
 
         private AuthResponseDto _parseSignAsync200Response(string httpRspBody, AuthRequestDto inDto)
@@ -796,7 +837,7 @@ xmlns:fi=""http://mss.ficom.fi/TS102204/v1.0.0#"">
             if (!req.IsComplete()) {
                 return new AuthResponseDto(ServiceStatusCode.InvalidInput, "Input is incomplete");
             };
-            if (_cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.requireExistence) && string.IsNullOrWhiteSpace(req.UserSerialNumber))
+            if (! _cfg.UserSerialNumberPolicy.HasFlag(UserSerialNumberPolicy.allowAbsence) && string.IsNullOrWhiteSpace(req.UserSerialNumber))
                 return new AuthResponseDto(ServiceStatusCode.UserSerialNumberNotRegistered);
 
             // build request SOAP body
@@ -1095,9 +1136,6 @@ xmlns:v1=""http://uri.etsi.org/TS102204/v1.1.2#"">
                 Logging.Log.ServerResponseMessageError("isValidSignature", "Input dataToBeSigned is null");
                 return false;
             };
-
-            if (_cfg.DisableSignatureValidation)
-                return true;
 
             SignedCms signedCms = new SignedCms();
             try
