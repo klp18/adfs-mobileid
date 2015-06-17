@@ -37,7 +37,7 @@ namespace MobileId
         /// The signature in Response is invalid or cannot be verified.
         /// </summary>
         /// <remarks>
-        /// This code is similiar to <paramref name="INVALID_SIGNATURE"/> except that the verification is done at the client side.
+        /// This code is similar to <paramref name="INVALID_SIGNATURE"/> except that the verification is done at the client side.
         /// </remarks>
         InvalidResponseSignature = -505,
 
@@ -57,12 +57,12 @@ namespace MobileId
         MismatchedApTransId = -502,
 
         /// <summary>
-        /// Mobile Service cient has received an unexpected Fault Code or Status Code
+        /// Mobile Service client has received a known but unexpected Fault Code or Status Code
         /// </summary>
         IllegalStatusCode = -501, 
 
         /// <summary>
-        /// Mobile Service cient has received an unsupported Fault Code or Status Code
+        /// Mobile Service client has received an unsupported Fault Code or Status Code
         /// </summary>
         UnsupportedStatusCode = -500,
 
@@ -132,7 +132,7 @@ namespace MobileId
 
         // For value > 0, see Mobile ID Reference Guide, Chap. 7.8
         // It should include only the code which has been implemented (a subset of ETSI standard code).
-        // If a code is included here but has been implemented on the server-side, the client will detect it and issues warning.
+        // If a code is not included here but has been implemented on the server-side, the client will detect it and issues warning.
 
         REQUEST_OK = 100,
         WRONG_PARAM = 101,

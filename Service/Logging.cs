@@ -216,62 +216,62 @@ namespace MobileId
 
         // Service boundary
 
-        [Event(40, Keywords = Keywords.Backend, Level = EventLevel.Verbose, Channel = EventChannel.Analytic, Task = Tasks.MssRequestSignature, Opcode = EventOpcode.Start,
+        [Event(40, Keywords = Keywords.Service, Level = EventLevel.Verbose, Channel = EventChannel.Analytic, Task = Tasks.MssRequestSignature, Opcode = EventOpcode.Start,
             Message = "requestParams={0}; asynchronous={1}")]
         public void MssRequestSignatureStart(string RequestParams, string Asynchronous) {
             WriteEvent(40, RequestParams, Asynchronous);}
 
-        [Event(41, Keywords = Keywords.Backend, Level = EventLevel.Verbose, Channel = EventChannel.Analytic, Task = Tasks.MssRequestSignature, Opcode = EventOpcode.Stop,
+        [Event(41, Keywords = Keywords.Service, Level = EventLevel.Verbose, Channel = EventChannel.Analytic, Task = Tasks.MssRequestSignature, Opcode = EventOpcode.Stop,
             Message="statusCode={0}")]
         public void MssRequestSignatureStop(int StatusCode) {
             WriteEvent(41, StatusCode); }
 
-        [Event(42, Keywords = Keywords.Backend | Keywords.Audit | EventKeywords.AuditSuccess, Level = EventLevel.Informational, Channel = EventChannel.Admin, Task = Tasks.MssRequestSignature, Opcode = EventOpcode.Info,
+        [Event(42, Keywords = Keywords.Service | Keywords.Audit | EventKeywords.AuditSuccess, Level = EventLevel.Informational, Channel = EventChannel.Admin, Task = Tasks.MssRequestSignature, Opcode = EventOpcode.Info,
             Message = "Signature Success: apTransId='{0}', msspTransId='{1}', phoneNumber='{2}', userSerialNumber='{3}'")]
         public void MssRequestSignatureSuccess(string ApTransId, string MsspTransId, string PhoneNumber, string UserSerialNumber) {
             WriteEvent(42, ApTransId, MsspTransId, PhoneNumber, _s(UserSerialNumber));}
 
-        [Event(43, Keywords = Keywords.Backend, Level = EventLevel.Verbose, Channel = EventChannel.Analytic,
+        [Event(43, Keywords = Keywords.Service, Level = EventLevel.Verbose, Channel = EventChannel.Analytic,
             Message = "apTransId='{0}', msspTransId='{1}', phoneNumber='{2}'")]
         public void MssRequestSignaturePending(string ApTransId, string MsspTransId, string PhoneNumber){
             WriteEvent(43, ApTransId, MsspTransId, PhoneNumber); }
 
-        [Event(44, Keywords = Keywords.Backend | Keywords.Audit | EventKeywords.AuditFailure, Level = EventLevel.Warning, Channel = EventChannel.Admin,
+        [Event(44, Keywords = Keywords.Service | Keywords.Audit | EventKeywords.AuditFailure, Level = EventLevel.Warning, Channel = EventChannel.Admin,
             Message = "Signature Failure: statusCode={0}, apTransId={1}, msspTransId={2}, phoneNumber={3}, userSerialNumber={4}, detail='{5}'")]
         public void MssRequestSignatureWarning(int StatusCode, string ApTransId, string MsspTransId, string PhoneNumber, string UserSerialNumber, string Detail) {
             WriteEvent(44, StatusCode, ApTransId, _s(MsspTransId), _s(PhoneNumber), _s(UserSerialNumber), Shorten(Detail)); }
 
-        [Event(45, Keywords = Keywords.Backend | Keywords.Audit | EventKeywords.AuditFailure, Level = EventLevel.Error, Channel = EventChannel.Admin,
+        [Event(45, Keywords = Keywords.Service | Keywords.Audit | EventKeywords.AuditFailure, Level = EventLevel.Error, Channel = EventChannel.Admin,
             Message = "Signature Error: statusCode={0}, apTransId={1}, msspTransId={2}, phoneNumber={3}, userSerialNumber={4}, detail='{5}'")]
         public void MssRequestSignatureError(int StatusCode, string ApTransId, string MsspTransId, string PhoneNumber, string UserSerialNumber, string Detail) {
             WriteEvent(45, StatusCode, ApTransId, _s(MsspTransId), _s(PhoneNumber), _s(UserSerialNumber), Shorten(Detail)); }
 
-        [Event(46, Keywords = Keywords.Backend, Level = EventLevel.Verbose, Channel = EventChannel.Analytic, Task = Tasks.MssPollSignature, Opcode = EventOpcode.Start,
+        [Event(46, Keywords = Keywords.Service, Level = EventLevel.Verbose, Channel = EventChannel.Analytic, Task = Tasks.MssPollSignature, Opcode = EventOpcode.Start,
             Message = "requestParams={0}, msspTransId='{1}'")]
         public void MssPollSignatureStart(string RequestParams, string MsspTransId) { 
             WriteEvent(46, RequestParams, MsspTransId); }
 
-        [Event(47, Keywords = Keywords.Backend, Level = EventLevel.Verbose, Channel = EventChannel.Analytic, Task = Tasks.MssPollSignature, Opcode = EventOpcode.Stop,
+        [Event(47, Keywords = Keywords.Service, Level = EventLevel.Verbose, Channel = EventChannel.Analytic, Task = Tasks.MssPollSignature, Opcode = EventOpcode.Stop,
             Message="statusCode={0}")]
         public void MssPollSignatureStop(int StatusCode) {
             WriteEvent(47, StatusCode); }
 
-        [Event(48, Keywords = Keywords.Backend | Keywords.Audit | EventKeywords.AuditSuccess, Level = EventLevel.Informational, Channel = EventChannel.Admin, Task = Tasks.MssPollSignature, Opcode = EventOpcode.Info,
+        [Event(48, Keywords = Keywords.Service | Keywords.Audit | EventKeywords.AuditSuccess, Level = EventLevel.Informational, Channel = EventChannel.Admin, Task = Tasks.MssPollSignature, Opcode = EventOpcode.Info,
             Message = "Signature Success: apTransId={0}, msspTransId={1}, phoneNumber={2}, userSerialNumber={3}")]
         public void MssPollSignatureSuccess(string ApTransId, string MsspTransId, string PhoneNumber, string UserSerialNumber) {
             WriteEvent(48, ApTransId, MsspTransId, PhoneNumber, _s(UserSerialNumber)); }
 
-        [Event(49, Keywords = Keywords.Backend, Level = EventLevel.Verbose, Channel = EventChannel.Analytic,
+        [Event(49, Keywords = Keywords.Service, Level = EventLevel.Verbose, Channel = EventChannel.Analytic,
             Message = "apTransId={0}, msspTransId={1}, phoneNumber={2}")]
         public void MssPollSignaturePending(string ApTransId, string MsspTransId, string PhoneNumber) {
             WriteEvent(49, ApTransId, MsspTransId, PhoneNumber); }
 
-        [Event(50, Keywords = Keywords.Backend | Keywords.Audit | EventKeywords.AuditFailure, Level = EventLevel.Warning, Channel = EventChannel.Admin,
+        [Event(50, Keywords = Keywords.Service | Keywords.Audit | EventKeywords.AuditFailure, Level = EventLevel.Warning, Channel = EventChannel.Admin,
             Message = "Signature Failure: statusCode={0}, apTransId={1}, msspTransId={2}, phoneNumber={3}, userSerialNumber={4}, detail='{5}'")]
         public void MssPollSignatureWarning(int StatusCode, string ApTransId, string MsspTransId, string PhoneNumber, string UserSerialNumber, string Detail) {
             WriteEvent(50, StatusCode, ApTransId, _s(MsspTransId), _s(PhoneNumber), _s(UserSerialNumber), Shorten(Detail)); }
 
-        [Event(51, Keywords = Keywords.Backend | Keywords.Audit | EventKeywords.AuditFailure, Level = EventLevel.Error, Channel = EventChannel.Admin,
+        [Event(51, Keywords = Keywords.Service | Keywords.Audit | EventKeywords.AuditFailure, Level = EventLevel.Error, Channel = EventChannel.Admin,
             Message = "Signature Error: statusCode={0}, apTransId={1}, msspTransId={2}, phoneNumber={3}, userSerialNumber={4}, detail='{5}'")]
         public void MssPollSignatureError(int StatusCode, string ApTransId, string MsspTransId, string PhoneNumber, string UserSerialNumber, string Detail) {
             WriteEvent(51, StatusCode, ApTransId, _s(MsspTransId), _s(PhoneNumber), _s(UserSerialNumber), Shorten(Detail));}
@@ -283,26 +283,20 @@ namespace MobileId
             public const EventKeywords KeyManagement = (EventKeywords)0x0004L;
             public const EventKeywords Transport = (EventKeywords)0x0008L;   // tcpip-network, ssl-establishment
             public const EventKeywords Message = (EventKeywords)0x0010L; // soap/json
-            public const EventKeywords Backend = (EventKeywords)0x0020L;
+            public const EventKeywords Service = (EventKeywords)0x0020L;
             public const EventKeywords AttrStore = (EventKeywords)0x0040L;
             public const EventKeywords Attack = (EventKeywords)0x0080L; // possible hacking attack
 
             public string AsString(EventKeywords keywords)
             {
                 StringBuilder sb = new StringBuilder();
-                string[] names = new string[] { "Audit", "Config", "KeyManagement", "Transport", "Message", "Backend", "AttrStore", "Attack" };
+                string[] names = new string[] { "Audit", "Config", "KeyManagement", "Transport", "Message", "Service", "AttrStore", "Attack" };
                 for (int i=0, k=1; k <= 0x80; i++, k*=2) {
                     if ((k & (long)keywords) != 0) {
                         if (sb.Length > 0) sb.Append(",");
                         sb.Append(names[i]);
                     }
                 }
-                //foreach (EventKeywords k in new EventKeywords[] { Audit, Config, KeyManagement, Transport, Message, Backend, AttrStore, Attack }) {
-                //    if (((long)k & (long)keywords) != 0) {
-                //        if (sb.Length > 0) sb.Append(",");
-                //        sb.Append(System.Enum.GetName(typeof(EventKeywords), k));
-                //    }
-                //}
                 return sb.ToString();
             }
         }

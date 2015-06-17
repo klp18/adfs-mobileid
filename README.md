@@ -1,7 +1,5 @@
 # Mobile ID Authentication Provider for Active Directory Federation Service (ADFS)
 
-*Beta Release*
-
 This is an Active Directory Federation Service (ADFS) external authentication provider
 which authenticates end users with [Mobile ID](https://www.swisscom.ch/mid).
 
@@ -113,23 +111,26 @@ while the element `mobileIdAdfs` specifies the integration of Mobile ID with ADF
   + `SslKeystore`: Store location of certificate/key used for Mobile ID connectivity. For ADFS, the value should be usually `LocalMachine`. Default: `CurrentUser`
   + `SslCertThumbprint`: The SHA1 Thumbprint of certificate used for Mobile ID connectivity. The thumbprint can be read out of the `Certificate` GUI (i.e. double-click the certificate file), or with a PowerShell cmdlet like `Get-ChildItem -Path cert:\\LocalMachine\My`. Mandatory.
   + `SslRootCaCertDN`: Distinguished Name of the Root Certificate in the certificate chain of Mobile ID servers. Default: "CN=Swisscom Root CA 2, OU=Digital Certificate Services, O=Swisscom, C=ch"
+  + `UserSerialNumberPolicy`: Flags that determine how the serial number in user’s certificate is used in the authentication.
+     Supported flags are warnMismatch(1), allowAbsence(2), allowMismatch (4). Default: "6"
 * Element `mobileIdAdfs`:
   + `AdAttrMobile`: Attribute name of AD user object for the mobile number. The attribute should have exactly one value. Default: `mobile`.
-  + `AdAttrSerialNumber`: Attribute name of AD user object for the Serial Number of Mobile ID. The attribute should have at most one value. Default: `msNPCallingStationID`
+  + `AdAttrSerialNumber`: Attribute name of AD user object for the Serial Number of Mobile ID. The attribute should have at most one value. Default: `serialNumber`
   + `LoginPrompt.`xx (xx=`en`,`de`,`fr`,`it`): Login message sent to the mobile phone.
      The value can optionally contains one place holder `#TransId#` which expands to a 5-char random string.
   + `LoginNonceLength`: Length of the random string to be included in the login prompt (see parameter `LoginPrompt.`xx). Default: 5
   + `SessionMaxTries`:  In an *Mobile ID authentication session", a user can retry the Mobile ID after an unsuccessful login. This is the maximum number of unsucessful login tries in a Mobile ID authentication session. Default: `5`.
-  + `SessionTimeoutSeconds`: Maximum duration, in seconds, of a Mobile ID authentication session.
+  + `SessionTimeoutSeconds`: Maximum duration, in seconds, of a Mobile ID authentication session. Default: `300`.
   + `ShowDebugMsg`: If this parameter is `true`, debugging information may be displayed in web browser in case of errors. Otherwise the debugging information is not displayed. Default: `false`
 
 ### Step 3a: Installation of Mobile ID Authentication Provider for ADFS with Installer
 
-The installation is automated by the [setup](../binaries) program. We recommend you to use the installer (i.e. start `midadfs_setup_1.0.0.0.exe` and follow the wizard).
+The installation is automated by the [setup](../binaries) program. We recommend you to use the installer (i.e. start `midadfs_setup_1.x.y.z.exe` and follow the wizard).
 The setup program 
 
 * unpacks all necessary files to the file system
 * install all necessary assemblies and resource to GAC
+* register EventSource for Windows EventLog and ETW providers
 * register Mobile ID Authentication Provider in ADFS (it starts ADFS service if it was not running)
 * install static resource in ADFS web scheme
 * restart ADFS and dependent services
@@ -137,6 +138,8 @@ The setup program
 The trace file `inst\setup_trace.log` in the installation folder records what the setup program was doing.
 
 ### Step 3b: Manual installation of Mobile ID Authentication Provider for ADFS
+
+Note: The version numbers in the commands may change on version upgrade. You may need to adapt the version parameters for your version.
 
 1. Download (or build) all DLLs (e.g. `MobileId.Adfs.AuthnAdapter.dll`) from the [binaries](../binaries), for example to `C:\midadfs\v1.0`.
 
@@ -167,7 +170,24 @@ The trace file `inst\setup_trace.log` in the installation folder records what th
    Set-AdfsWebConfig -ActiveThemeName custom
    `````
 
-5. Restart the `Active Directory Federation Services` and dependent services (if any), e.g. in command line prompt
+5. Install ETW providers:
+   Close `Windows Event Viewer` if it is open.
+   In Windows PowerShell prompt, enters
+
+   `````
+   wevtutil.exe um C:\midadfs\v1.1\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.man
+   wevtutil.exe im C:\midadfs\v1.1\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.man /rf:C:\midadfs\v1.1\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.dll /mf:C:\midadfs\v1.1\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.dll
+   wevtutil.exe um C:\midadfs\v1.1\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.etwManifest.man
+   wevtutil.exe im C:\midadfs\v1.1\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.etwManifest.man /rf:C:\midadfs\v1.1\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.dll /mf:C:\midadfs\v1.1\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.dll
+
+   `````
+   In PowerShell:
+   `````
+   [System.Diagnostics.EventLog]::CreateEventSource("MobileId.Client","Application");
+   [System.Diagnostics.EventLog]::CreateEventSource("MobileId.Adfs","Application");
+   `````
+
+6. Restart the `Active Directory Federation Services` and dependent services (if any), e.g. in command line prompt
    `````
    net stop drs
    net stop adfsSrv
@@ -175,7 +195,7 @@ The trace file `inst\setup_trace.log` in the installation folder records what th
    net start drs
    `````
 
-6. Verify the installation of the DLL
+7. Verify the installation of the DLL
    `````
    Get-AdfsAuthenticationProvider "MobileID10"
    `````
@@ -210,8 +230,9 @@ The current release relies on the following LDAP attributes in Active Directory:
 
 * `userPrincipleName`:	this is the username that the user authenticates with the primary authentication. Example: `tester1@contoso.com`
 * `mobile`:	a telephone number to which the Mobile ID authentication message will be sent to. Example: `+41791234567`
+* `serialNumber`:	(only when the config parameter `UserSerialNumberPolicy` has a non-default value) the serial number of the user. Example: `MIDCHE0123456789`
 
-For Mobile ID authentication, both attributes must be defined.
+For Mobile ID authentication, `userPrincipleName` and `mobile` must be defined.
 
 ### Configuration change
 
@@ -224,6 +245,13 @@ net stop adfssrv
 net start adfssrv
 net start drs
 `````
+
+### Monitoring
+
+Mobile ID authentication provider writes logs to Windows Event Log in containers `Application and Services\Swisscom\MobileID`.
+Events with severity level `Error` in `Admin` channels should be monitored by ADFS operators.
+The [Mobile ID Microsoft ADFS Solution Guide](https://www.swisscom.ch/en/business/mobile-id/technical-details/technical-documents.html)
+contains a list of all Event IDs issued by the Mobile ID authentication provider.
 
 ## Uninstallation of the binaries
 
@@ -241,6 +269,16 @@ If you have installed Mobile ID authentication provider without a setup program,
 4. Remove all DLLs of Mobile ID Authentication Providers from GAC:
    If `gacutil.exe` is available in your runtime environment, you can also remove the DLL from GAC with `gacutil.exe /u MobileId.Adfs.AuthnAdapter` (repeat it for all DLLs installed earlier).
 
+5. If you don't want to keep the Mobile ID logs in Windows Event Log:
+   Close `Windows Event Viewer`.
+   In Windows Command Prompt, enter
+   `````
+   wevtutil.exe um C:\midadfs\v1.1\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.man
+   wevtutil.exe um C:\midadfs\v1.1\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.etwManifest.man
+   del /Q C:\Windows\System32\winevt\Logs\Swisscom-MobileID-*.*
+
+   `````
+
 ## Upgrade
 
 Unless otherwise specified, an binary upgrade is an uninstallation of the binaries, followed by
@@ -248,9 +286,14 @@ the installation of Mobile ID Authentication Provider (step 3).
 
 ## Troubleshooting
 
+### Windows Event Log
+
+The `Analytic` and/or `Debug` channels `Application and Services\Swisscom\MobileID\`* can be enabled / disabled on demand.
+Alternatively, [PerfView](https://www.google.com/search?q=PerfView) can be used to capture the logging events written by Mobile ID Authentication Provider on demand.
+
 ### Trace files
 
-The logging / tracing of Mobile ID Authentication Provider can be controlled via the dotNet tracing
+The logging / tracing of Mobile ID Authentication Provider can also be controlled via the dotNet tracing
 configuration mechanism. The configuration file is shared with configuration file ADFS service, 
 which is located in `C:\Windows\ADFS\Microsoft.IdentityServer.ServiceHost.exe.config`.
 Mobile ID Authentication Provider writes tracing messages to `MobileId.WebClient` and `MobileId.Adfs.AuthnAdapter`.
