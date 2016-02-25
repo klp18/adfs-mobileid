@@ -1,4 +1,5 @@
-﻿
+﻿$VERSION = "0.2";
+
 function _hadError($err) {
   return ! ([System.String]::IsNullOrEmpty($err));
 }
@@ -116,7 +117,10 @@ function UnregisterMobileID($version) {
     return ($false,$undoActions);
   };
 
-  if (IsMidInAdfsPolicyStore($version)) {
+  $isPrimaryComputer = ((Get-AdfsSyncProperties | select -Property Role).Role -eq "PrimaryComputer");
+
+  if ($isPrimaryComputer) {
+    if (IsMidInAdfsPolicyStore($version)) {
     Write-Verbose "# remove $midVersion from AdfsGlobalAuthenticationPolicy";
 
     # record current state
@@ -130,31 +134,32 @@ function UnregisterMobileID($version) {
     $localError = $null;
     Set-AdfsGlobalAuthenticationPolicy -AdditionalAuthenticationProvider $res -ErrorVariable localError;
     if (_hadError($localError)) {
-      Write-Error $localError[0];
-      return ($false, @());
+        Write-Error $localError[0];
+        return ($false, @());
     }
-  } else {
+    } else {
     Write-Verbose "# $midVersion not in ADFS policy store. NEXT.";
-  }
+    }
 
-  if (IsMidInAdfsRegistry($version)) {
+    if (IsMidInAdfsRegistry($version)) {
     Write-Verbose "# remove $midVersion from Adfs";
     Write-Verbose "Unregister-AdfsAuthenticationProvider -Name $midVersion -Confirm:\$false";
     $locaError = $null;
     Unregister-AdfsAuthenticationProvider -Name $midVersion -Confirm:$false -ErrorVariable localError;
     if (_hadError($localError)) {
-      Write-Error $localError[0];
-      return ($false, $undoActions);
+        Write-Error $localError[0];
+        return ($false, $undoActions);
     }
     $undoActions = $undoActions + "Register-AdfsAuthenticationProvider -Name $midVersion";
     Write-Verbose "# restart ADFS service and its running dependencies";
     if (! (_restartServices("adfssrv"))) {
-      return ($false, $undoActions);
+        return ($false, $undoActions);
     };
     # $undoActions = $undoActions + "Start-Service -Name AdfsSrv";
-  } else {
+    } else {
     Write-Verbose "# $midVersion not in ADFS registry. NEXT.";
-  }
+    }
+  };
 
   # Write-Verbose "# remove Mobile ID from ETW";
   # _unregisterEtw;
@@ -264,40 +269,45 @@ function _replaceSpinJs($filePath, $schemeName) {
   };
 }
 
-function _registerEtw() {
+function RegisterEtw($version) {
     $exe = "wevtutil.exe";
-    foreach ($dll in @('MobileId.ClientService.Swisscom-MobileID-Client', 'MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs')) {
-      $dll = "$pwd\lib\$dll.etwManifest";
+    foreach ($dll in @("MobileId.ClientService.Swisscom-MobileID-Client", "MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs")) {
+      $dll = "$pwd\lib\$dll$version.etwManifest";
       Write-Debug "Start-Process -FilePath ""$exe"" -ArgumentList @(""um"",""""""$dll.man"""""") -PassThru -Wait";
       $p = Start-Process -FilePath $exe -ArgumentList @("um", """$dll.man""") -PassThru -Wait;
       if ($p.ExitCode -ne 0) {
         Write-Error ("$exe um $dll.man exit code " + $p.ExitCode)
+        return $false;
       } else {
-        Write-Debug "uninstall exitCode=0";
+        Write-Debug "unregister exitCode=0";
       }
       Write-Debug ("Start-Process -FilePath ""$exe"" -ArgumentList @(""im"", ""$dll.man"", ""/rf:$dll.dll"", ""/mf:$dll.dll"") -PassThrus -Wait");
       $p = Start-Process -FilePath $exe -ArgumentList @("im", """$dll.man""", "/rf:""$dll.dll""", "/mf:""$dll.dll""") -PassThru -Wait;
       if ($p.ExitCode -ne 0) {
         Write-Error ("'$exe im $dll' exit code " + $p.ExitCode)
+        return $false;
       } else {
-        Write-Debug "install exitCode=0";
+        Write-Debug "register exitCode=0";
       }
     };
-    return;
+    return $true;
 }
 
-# function _unregisterEtw() {
-#     foreach ($dll in @('MobileId.ClientService.*.etwManifest')) {
-#      Write-Debug "Start-Process -FilePath ""wevtutil.exe"" -ArgumentList ""um"",""$pwd\lib\$dll.man""";
-#      $p = Start-Process -FilePath "wevtutil.exe" -ArgumentList "um","$pwd\lib\$dll.man" -PassThru -Wait;
-#      if ($p.ExitCode -ne 0) {
-#        Write-Error ("wevutil um $dll exit code" + $p.ExitCode)
-#      } else {
-#        Write-Debug "ExitCode=0";
-#      }
-#    };
-#    return;
-# }
+function UnregisterEtw($version) {
+    $exe = "wevtutil.exe";
+    foreach ($dll in @("MobileId.ClientService.Swisscom-MobileID-Client", "MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs")) {
+     $dll = "$pwd\lib\$dll$version.etwManifest";
+     Write-Debug "Start-Process -FilePath ""$exe"" -ArgumentList ""um"",""""""$dll.man"""""") -PassThru -Wait";
+     $p = Start-Process -FilePath $exe -ArgumentList @("um", """$dll.man""") -PassThru -Wait;
+     if ($p.ExitCode -ne 0) {
+       Write-Error ("$exe um $dll.man exit code" + $p.ExitCode)
+       return $false;
+     } else {
+       Write-Debug "unregister ExitCode=0";
+     }
+   };
+   return $true;
+}
 
 function _createEventSource() {
   $eventSources = @("MobileId.Client","MobileId.Adfs");
@@ -316,14 +326,16 @@ function RegisterMobileID($version,$versionQdot,$publicKeyToken) {
      return $false;
   };
 
+  $isPrimaryComputer = ((Get-AdfsSyncProperties | select -Property Role).Role -eq "PrimaryComputer");
+
   if ( IsMidInAdfsPolicyStore($version)) {
     Write-Verbose "Mobild ID v$version is already in ADFS policy store. SKIP.";
-    return $true;
+    if ($isPrimaryComputer) {return $true;}
   };
 
   if ( IsMidInAdfsRegistry($version)) {
     Write-Verbose "Mobild ID v$version is already register. SKIP.";
-    return $true;
+    if ($isPrimaryComputer) {return $true;}
   };
   
 
@@ -343,23 +355,25 @@ function RegisterMobileID($version,$versionQdot,$publicKeyToken) {
   };
 
   Write-Verbose "# register Mobile ID in ETW";
-  _registerEtw;
+  RegisterEtw($version);
 
   Write-Verbose "# create non-existing EventSource in EventLog";
   _createEventSource;
 
-  Write-Verbose "# register Mobile ID v$version to ADFS";
-  $typeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=$versionQdot, Culture=neutral, PublicKeyToken=$publicKeyToken, processorArchitecture=MSIL";
-  $cmd = "Register-AdfsAuthenticationProvider -ConfigurationFilePath .\MobileId.Adfs.AuthnAdapter.xml -TypeName ""$typeName"" -Name MobileID$version";
-  Write-Verbose $cmd;
-  Register-AdfsAuthenticationProvider -ConfigurationFilePath .\MobileId.Adfs.AuthnAdapter.xml -TypeName $typeName -Name MobileID$version -ErrorVariable localError;
-  if (_hadError($localError)) {
+  if ($isPrimaryComputer) {
+    Write-Verbose "# register Mobile ID v$version to ADFS";
+    $typeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=$versionQdot, Culture=neutral, PublicKeyToken=$publicKeyToken, processorArchitecture=MSIL";
+    $cmd = "Register-AdfsAuthenticationProvider -ConfigurationFilePath .\MobileId.Adfs.AuthnAdapter.xml -TypeName ""$typeName"" -Name MobileID$version";
+    Write-Verbose $cmd;
+    Register-AdfsAuthenticationProvider -ConfigurationFilePath .\MobileId.Adfs.AuthnAdapter.xml -TypeName $typeName -Name MobileID$version -ErrorVariable localError;
+    if (_hadError($localError)) {
     Write-Error $localError[0];
     return $false;
-  }
+    }
 
-  Write-Verbose "# install static web resource in ADFS";
-  _replaceSpinJs("lib/spin.min.js"); # possible error is not fatal, continue
+    Write-Verbose "# install static web resource in ADFS";
+    _replaceSpinJs("lib/spin.min.js"); # possible error is not fatal, continue
+  };
 
   Write-Verbose "# restart ADFS service and its running dependencies";
   return _restartServices("adfssrv");
@@ -386,7 +400,7 @@ function ImportMidAdfsConfig($configFile, $midAdfsVersion) {
   };
 }
 
-Export-ModuleMember -Function RegisterMobileID,UnregisterMobileID,IsMidAdfsRunning,ImportMidAdfsConfig
+Export-ModuleMember -Function RegisterMobileID,UnregisterMobileID,IsMidAdfsRunning,ImportMidAdfsConfig,RegisterEtw,UnregisterEtw
 
 # Test
 #$DebugPreference = "Continue";
