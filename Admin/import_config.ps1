@@ -5,7 +5,7 @@ if (($args.Count -eq 0) -or ($args.Count -gt 2)) {
   exit 2;
 }
 
-$shortVersion = "11"
+$shortVersion = "12"
 Import-Module -Name "$PSScriptRoot\lib\MidAdfs.psm1" -Force
 
 $global:VerbosePreference = "Continue"

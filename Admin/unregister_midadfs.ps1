@@ -7,7 +7,7 @@ $global:DebugPreference = "Continue"
 $global:WarningPreference = "Continue"
 $global:ErrorActionPreference = "Continue"
 
-$shortVersion = "11";
+$shortVersion = "12";
 
 if ($Args[0] -ne $null) {
   $logFile = $Args[0];
