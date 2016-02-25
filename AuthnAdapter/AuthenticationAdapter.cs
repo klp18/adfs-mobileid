@@ -230,7 +230,14 @@ namespace MobileId.Adfs
                                 if (thisProperty.ToLower(System.Globalization.CultureInfo.InvariantCulture) == cfgAdfs.AdAttrMobile)
                                 {
                                     msisdn = propertyValue.ToString();
-                                    ctx.Data.Add(MSISDN, msisdn); //  let it blow up if MSISDN is ambiguous
+                                    string msisdnSanitized;
+                                    try {
+                                        msisdnSanitized = Util.SanitizePhoneNumber(msisdn, cfgMid);
+                                    } catch (Exception e) {
+                                        Logging.Log.AttrMobileMalformed(upn, msisdn);
+                                        throw e;
+                                    }
+                                    ctx.Data.Add(MSISDN, msisdnSanitized); //  let it blow up if MSISDN is ambiguous
                                 }
                                 if (needLoadSerialNumber &&
                                     (thisProperty.ToLower(System.Globalization.CultureInfo.InvariantCulture) == cfgAdfs.AdAttrMidSerialNumber))
@@ -303,18 +310,33 @@ namespace MobileId.Adfs
 
             // Start the asynchrous login
             AuthRequestDto req = new AuthRequestDto();
-            req.PhoneNumber = (string) ctx.Data[MSISDN];
-            req.UserLanguage = (UserLanguage)Enum.Parse(typeof(UserLanguage), resMgr.GetString(RES_LANG, culture));
-            req.DataToBeSigned = _buildMobileIdLoginPrompt(req.UserLanguage, culture, uiTrxId);
-            req.TimeOut = cfgMid.RequestTimeOutSeconds;
-            if (needCheckUserSerialNumber /* cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore */ && ctx.Data.ContainsKey(UKEYSN))
-                req.UserSerialNumber = (string)ctx.Data[UKEYSN];
-            ctx.Data.Add(AUTHBEGIN, DateTime.UtcNow.Ticks/10000);
-            ctx.Data.Add(SESSBEGIN, DateTime.UtcNow.Ticks/10000);
-            AuthResponseDto rsp = getWebClient().RequestSignature(req, true /* async */);
-            ctx.Data.Add(SESSTRIES, 1);
-            string logMsg = "svcStatus:" + (int) rsp.Status.Code + ", mssTransId:\"" + rsp.MsspTransId + "\", state:";
             string upn = identityClaim.Value; // for audit only
+
+            try {
+                req.PhoneNumber = (string)ctx.Data[MSISDN];
+                req.UserLanguage = (UserLanguage)Enum.Parse(typeof(UserLanguage), resMgr.GetString(RES_LANG, culture));
+                req.DataToBeSigned = _buildMobileIdLoginPrompt(req.UserLanguage, culture, uiTrxId);
+                req.TimeOut = cfgMid.RequestTimeOutSeconds;
+                if (needCheckUserSerialNumber /* cfgMid.UserSerialNumberPolicy != UserSerialNumberPolicy.ignore */ && ctx.Data.ContainsKey(UKEYSN))
+                    req.UserSerialNumber = (string)ctx.Data[UKEYSN];
+            } catch (Exception e) {
+                Logging.Log.ConfigError("upn:\"" + upn + "\", err:\"" + e.Message + "\"");
+                throw e;
+                // return new AdapterPresentation(AuthView.AuthError, cfgAdfs);
+            }
+            ctx.Data.Add(AUTHBEGIN, DateTime.UtcNow.Ticks / 10000);
+            ctx.Data.Add(SESSBEGIN, DateTime.UtcNow.Ticks / 10000);
+            AuthResponseDto rsp;
+            try {
+                rsp = getWebClient().RequestSignature(req, true /* async */);
+            } 
+            catch (Exception e) {
+                Logging.Log.AuthenticationTechnicalError(0, 0, upn, null, null, e.ToString());
+                throw e;
+                // return new AdapterPresentation(AuthView.AuthError, cfgAdfs);
+            };
+            ctx.Data.Add(SESSTRIES, 1);
+            string logMsg = "svcStatus:" + (int)rsp.Status.Code + ", mssTransId:\"" + rsp.MsspTransId + "\", state:";
 
             switch (rsp.Status.Code)
             {
@@ -323,7 +345,7 @@ namespace MobileId.Adfs
                     ctx.Data.Add(STATE, 3);
                     ctx.Data.Add(MSSPTRXID, rsp.MsspTransId);
                     logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + "3");
-                    Logging.Log.AuthenticationSucess(0, 3, upn, rsp.MsspTransId);
+                    Logging.Log.AuthenticationSuccess(0, 3, upn, rsp.MsspTransId);
                     return new AdapterPresentation(AuthView.TransferCtx, cfgAdfs);
                 case ServiceStatusCode.REQUEST_OK:
                     ctx.Data.Add(STATE, 1);
@@ -385,11 +407,11 @@ namespace MobileId.Adfs
                     configData.Data.Position = 0;
                     cfgMid = WebClientConfig.CreateConfig(cfgStr);
                     logger.TraceEvent(TraceEventType.Verbose, 0, "Config.Mid: " + cfgMid);
-                    MobileId.Logging.Log.ConfigInfo(cfgMid.ToString());
+                    MobileId.Logging.Log.ConfigInfo(getWebClient().GetClientVersion(), cfgMid.ToString());
                     configData.Data.Position = 0;
                     cfgAdfs = AdfsConfig.CreateConfig(cfgStr);
                     logger.TraceEvent(TraceEventType.Verbose, 0, "Config.Adfs: " + cfgAdfs);
-                    Logging.Log.ConfigInfo(cfgAdfs.ToString());
+                    Logging.Log.ConfigInfo(AuthenticationAdapterMetadata.VERSION, cfgAdfs.ToString());
                 }
                 catch (Exception ex)
                 {
@@ -479,7 +501,7 @@ namespace MobileId.Adfs
                 {
                     case 3:
                         logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_OK: " + logInfo + ", state:" + state);
-                        Logging.Log.AuthenticationSucess(state, (int)ctx.Data[STATE], upn, msspTransId);
+                        Logging.Log.AuthenticationSuccess(state, (int)ctx.Data[STATE], upn, msspTransId);
                         claims = ClaimsHwToken;
                         return null;
                     case 1:
@@ -523,7 +545,7 @@ namespace MobileId.Adfs
                         case ServiceStatusCode.VALID_SIGNATURE:
                             ctx.Data[STATE] = 10;
                             logger.TraceEvent(TraceEventType.Information, 0, "AUTHN_OK: " + logInfo + ", state:" + ctx.Data[STATE] + ", i:" + i);
-                            Logging.Log.AuthenticationSucess(state, (int)ctx.Data[STATE], upn, msspTransId);
+                            Logging.Log.AuthenticationSuccess(state, (int)ctx.Data[STATE], upn, msspTransId);
                             // EventLog.WriteEntry(EVENTLOGSource, "Authentication success for " + upn, EventLogEntryType.SuccessAudit, 100);
                             claims = ClaimsHwToken;
                             return null;
@@ -618,7 +640,7 @@ namespace MobileId.Adfs
                                 ctx.Data[STATE] = 33;
                                 ctx.Data[MSSPTRXID] = rsp.MsspTransId;
                                 logger.TraceEvent(TraceEventType.Verbose, 0, logMsg + ctx.Data[STATE]);
-                                Logging.Log.AuthenticationSucess(state, (int)ctx.Data[STATE], upn, msspTransId);
+                                Logging.Log.AuthenticationSuccess(state, (int)ctx.Data[STATE], upn, msspTransId);
                                 return new AdapterPresentation(AuthView.TransferCtx, cfgAdfs);
                             case ServiceStatusCode.REQUEST_OK:
                                 ctx.Data[STATE] = 31;

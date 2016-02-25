@@ -12,6 +12,8 @@ namespace MobileId
     {
         public const int MAX_GSM338_CHARS_DTBS = 239;
         public const int MAX_UTF8_CHARS_DTBS = 119;
+        public const int MAX_MSISDN_DIGITS = 15; // defined by E.164, although Germany has reportely 17-digit MSISDNs (https://github.com/googlei18n/libphonenumber), not sure whether it is a mobile number
+        public const int MIN_MSISDN_DIGITS = 7;  // the length of a mobile number is 7 in "Country" Niue, https://en.wikipedia.org/wiki/List_of_mobile_phone_number_series_by_country
 
         string _apId;
         string _phoneNumber;
@@ -66,7 +68,7 @@ namespace MobileId
             set
             {
                 if (string.IsNullOrEmpty(value) ) throw new ArgumentNullException("PhoneNumberIsNullOrEmpty");
-                if (!Regex.Match(value, @"^\+?\d{7,15}$").Success) throw new ArgumentException("PhoneNumberIsIllFormed");
+                if (!Regex.Match(value, @"^\+?\d{7,15}$").Success) throw new ArgumentException("PhoneNumberIsIllFormed: '" + value + "'");
                 _phoneNumber = value;
             }
         }
@@ -108,7 +110,7 @@ namespace MobileId
         }
 
         /// <summary>s. AP_TransID in MobileID Reference Guide. If not specified, a default one will be generated.</summary>
-        // <example>AP.TEST.2015-02-15T19:39:11.123456Z</example>
+        /// <example>AP.TEST.2015-02-15T19:39:11.123456Z</example>
         public string TransId
         {
             get {
