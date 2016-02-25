@@ -17,7 +17,7 @@ If you are familiar with the contents in Integration Guide, you can skip the res
 
 (If you don't want to build from source code, the compiled binaries and a setup program can be downloaded from the [binaries subfolder](./binaries)).
 
-* Microsoft Visual Studio 2013 (which includes Microsoft .NET Framework 4.5.1)
+* Microsoft Visual Studio 2013 (which includes Microsoft .NET Framework 4.5.*)
 * The file Microsoft.IdentityServer.Web.dll. The DLL file can be copied from a Microsoft Windows Server 2012 R2 server.
 * [InnoSetup](http://www.innosetup.org) if you want to rebuild the setup program
 
@@ -33,12 +33,12 @@ There is also a [walkthrough guide](https://technet.microsoft.com/en-us/library/
 #### 1.1: IP connectivity between Mobile ID client and Mobile ID server
 
 The Mobile ID service (*MID*) can only be accessed by servers from specific IP addresses.
-The address range is specific to an Application Provider (*AP*) and configured by the MID service during the enrolment process for the AP.
+The address range is specific to an Application Provider (*AP*) and configured by the MID service during the enrollment process for the AP.
 
 #### 1.2. SSL connectivity between Mobile ID client and Mobile ID server
 
 An ADFS server must establish a mutually authenticated SSL/TLS connection with a MID server before calling the MID services.
-During the enrolment process of Mobile ID Application Provider Account, you have created a SSL/TLS client certificate for 
+During the enrollment process of Mobile ID Application Provider Account, you have created a SSL/TLS client certificate for 
 your Mobile ID connection.
 You also need the certificate of the Certificate Authority (*CA*) for the MID servers, which is located in [certs](certs) folder.
 
@@ -113,6 +113,10 @@ while the element `mobileIdAdfs` specifies the integration of Mobile ID with ADF
   + `SslRootCaCertDN`: Distinguished Name of the Root Certificate in the certificate chain of Mobile ID servers. Default: "CN=Swisscom Root CA 2, OU=Digital Certificate Services, O=Swisscom, C=ch"
   + `UserSerialNumberPolicy`: Flags that determine how the serial number in user’s certificate is used in the authentication.
      Supported flags are warnMismatch(1), allowAbsence(2), allowMismatch (4). Default: "6"
+  + `SanitizePhoneNumber`: If this parameter is `true`, phone numbers read from the attribute store are transformed before use in Mobile ID calls. The transformation is specified by `SanitizePhoneNumberPattern` and `SanitizePhoneNumberReplacement`. Default: remove all non-digits
+  + `SanitizePhoneNumberPattern`: Only effective when `SanitizePhoneNumber` is true. This parameter is the regular expression for matching a pattern in phone number. Default: `\D`
+  + `SanitizePhoneNumberReplacement`: Only effective when `SanitizePhoneNumber` is true. This parameter is the replace string for matched pattern defined by `SanitizePhoneNumberPattern`. Default: ""
+
 * Element `mobileIdAdfs`:
   + `AdAttrMobile`: Attribute name of AD user object for the mobile number. The attribute should have exactly one value. Default: `mobile`.
   + `AdAttrSerialNumber`: Attribute name of AD user object for the Serial Number of Mobile ID. The attribute should have at most one value. Default: `serialNumber`
@@ -137,9 +141,13 @@ The setup program
 
 The trace file `inst\setup_trace.log` in the installation folder records what the setup program was doing.
 
+For a deployment in an ADFS farm, this step must be run on ADFS member servers, with identical installation path.
+
 ### Step 3b: Manual installation of Mobile ID Authentication Provider for ADFS
 
-Note: The version numbers in the commands may change on version upgrade. You may need to adapt the version parameters for your version.
+Note 1: The version numbers in the commands may change on version upgrade. You may need to adapt the version parameters for your version.
+
+Note 2: For a deployment in an ADFS farm, this step must be run on ADFS member servers, unless otherwise specified.
 
 1. Download (or build) all DLLs (e.g. `MobileId.Adfs.AuthnAdapter.dll`) from the [binaries](../binaries), for example to `C:\midadfs\v1.0`.
 
@@ -154,7 +162,7 @@ Note: The version numbers in the commands may change on version upgrade. You may
    (`gacutil.exe` is available in Visual Studio 2013, default location `C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1A\bin\NETFX 4.5.1 Tools`.)
    Repeat these for all DLLs.
 
-3. Register the DLL with ADFS: Take a note of the version of `MobileId.Adfs.AuthenticationAdapter.dll` (right-click the DLL file in Windows Explorer, select `Properties`, `Details`, read `File Version`). In the example below, we assume it is `1.0.0.1`. In Windows PowerShell prompt, entertaining
+3. Register the DLL with ADFS on the primary ADFS server: Take a note of the version of `MobileId.Adfs.AuthenticationAdapter.dll` (right-click the DLL file in Windows Explorer, select `Properties`, `Details`, read `File Version`). In the example below, we assume it is `1.0.0.1`. In Windows PowerShell prompt, entertaining
    `````
    $TypeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=1.0.0.1, Culture=neutral, PublicKeyToken=2d8af5277000f5f0, processorArchitecture=MSIL"
    Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileId.Adfs.AuthnAdapter.xml" -TypeName $TypeName -Name "MobileID10"
@@ -163,7 +171,7 @@ Note: The version numbers in the commands may change on version upgrade. You may
    * If you build the DLL from source, you may have a different `PublicKeyToken` value. In this case, you need to modify the value `PublicKeyToken` in the command above.
    * If the DLL has a different value, you need to replace the value of `Version`.
 
-4. Install static web resources (`C:\midadfs\v1.0\spin.min.js` in this example) into ADFS: In Windows PowerShell prompt, enters
+4. Install static web resources (`C:\midadfs\v1.0\spin.min.js` in this example) into ADFS on the primary ADFS server: In Windows PowerShell prompt, enters
    `````
    New-AdfsWebTheme -Name custom -SourceName default
    Set-AdfsWebTheme -TargetName custom -AdditionalFileResource @{Uri="/adfs/portal/script/spin.js";path="C:\midadfs\v1.0\spin.min.js"}
@@ -195,7 +203,7 @@ Note: The version numbers in the commands may change on version upgrade. You may
    net start drs
    `````
 
-7. Verify the installation of the DLL
+7. Verify the installation of the DLL on the primary ADFS server
    `````
    Get-AdfsAuthenticationProvider "MobileID10"
    `````
@@ -211,13 +219,13 @@ This depends on your use case. For the verification purpose, configure ADFS as f
    For Primary Authentication, enable `Form Authentication` for `Extranet` and `Intranet` but do not enable `device authentication`.
    For Multi-Factor Authentication, require MFA for both `Intranet`and `Extranet`, select 'Mobile ID Authentication' as `additional authentication method`.
 
-3. TODO: Make sure that the service account of ADFS have access to the certificate/key used by Mobile ID (step 1.2.2).
+3. Make sure that the service account of ADFS have access to the certificate/key used by Mobile ID (step 1.2.2). `winhttpcertcfg.exe` can be used to grant access.
 
 ### Step 5: Verification
 
 You can verify the installation by login to the ADFS login web page with a test user.
 
-Assuming you have done the user mapping (see ) for the test user, you can connect your web browser
+Assuming you have done the user mapping (see a few lines below) for the test user, you can connect your web browser
 `https://<your.adfs.server.dns>/adfs/ls/IdpInitiatedSignon.aspx`. 
 After login with user@domain / password, Mobile ID login should occur.
 
@@ -229,7 +237,7 @@ Mobile ID authentication provider need to retrieve the mobile ID of the user onc
 The current release relies on the following LDAP attributes in Active Directory:
 
 * `userPrincipleName`:	this is the username that the user authenticates with the primary authentication. Example: `tester1@contoso.com`
-* `mobile`:	a telephone number to which the Mobile ID authentication message will be sent to. Example: `+41791234567`
+* `mobile`:	a telephone number to which the Mobile ID authentication message will be sent to. Example: `+41791234567` or `41791234567`.
 * `serialNumber`:	(only when the config parameter `UserSerialNumberPolicy` has a non-default value) the serial number of the user. Example: `MIDCHE0123456789`
 
 For Mobile ID authentication, `userPrincipleName` and `mobile` must be defined.
