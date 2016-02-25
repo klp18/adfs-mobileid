@@ -65,6 +65,7 @@
     <Compile Include="UnitTest4.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="WebClientAuthConfig05.xml" />
     <Content Include="signature_500_linebreak.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

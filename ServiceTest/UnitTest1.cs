@@ -48,7 +48,7 @@ namespace ServiceTest
             catch (Exception e)
             {
                 Assert.IsTrue(e.GetType() == typeof(ArgumentException), "Expect ArgumentException on garbarge PhoneNumber");
-                Assert.AreEqual("PhoneNumberIsIllFormed", e.Message, "Expect PhoneNumberIsIllFormed on garbarge PhoneNumber");
+                Assert.AreEqual("PhoneNumberIsIllFormed: 'garbarge'", e.Message, "Expect PhoneNumberIsIllFormed on garbarge PhoneNumber");
             }
 
             dto.PhoneNumber = "+41791234567";
