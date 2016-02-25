@@ -6,7 +6,7 @@ using System.Text;
 namespace MobileId
 {
 
-    [EventSource(Name = "Swisscom-MobileID-Client")]
+    [EventSource(Name = "Swisscom-MobileID-Client12")]
     public sealed class Logging : EventSource
     {
         static readonly public Logging Log = new Logging();
@@ -121,8 +121,8 @@ namespace MobileId
         // Config
 
         [Event(19, Keywords = Keywords.Config, Level = EventLevel.Informational, Channel = EventChannel.Admin,
-            Message = "Load Config: cfg={0}")]
-        public void ConfigInfo(string Content) { WriteEvent(19, Content); }
+            Message = "Load Config: codeVersion={0}, cfg={1}")]
+        public void ConfigInfo(int CodeVersion, string Content) { WriteEvent(19, CodeVersion, Content); }
 
         // SOAP Message
 

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace MobileId.Adfs
 {
-    [EventSource(Name = "Swisscom-MobileID-Adfs")]
+    [EventSource(Name = "Swisscom-MobileID-Adfs12")]
     public sealed class Logging : EventSource
     {
         static readonly public Logging Log = new Logging();
@@ -38,6 +38,10 @@ namespace MobileId.Adfs
             Message = "attribute store - user serial number not found: upn={0}")]
         public void AttrUserSerialNumberNotFound(string Upn) {WriteEvent(7, Upn);}
 
+        [Event(8, Keywords = Keywords.AttrStore, Level = EventLevel.Warning, Channel = EventChannel.Admin,
+        Message = "attribute store - phonenumber malformed (e.g. illegal length): upn={0}, phoneNumber={1}")]
+        public void AttrMobileMalformed(string Upn, string PhoneNumber) { WriteEvent(8, Upn, PhoneNumber); }
+
         [Event(10, Keywords = Keywords.AttrStore, Level = EventLevel.Verbose, Channel = EventChannel.Debug, Task = Tasks.IsAvailableForUser, Opcode = EventOpcode.Start,
             Message = "upn={0}, context='{1}'")]
         public void IsAvailableForUserStart(string Claim, string Context) { WriteEvent(10, Claim, Context); }
@@ -55,8 +59,8 @@ namespace MobileId.Adfs
         public void LoadAuthProviderStop(int InstanceId) { WriteEvent(13, InstanceId); }
 
         [Event(14, Keywords = Keywords.Config, Level = EventLevel.Informational, Channel = EventChannel.Admin, Task = Tasks.LoadAuthProvider, Opcode = EventOpcode.Info,
-            Message = "load config: cfg='{0}'")]
-        public void ConfigInfo(string Content) { WriteEvent(14, Content); }
+            Message = "load config: codeVersion={0}, cfg='{1}'")]
+        public void ConfigInfo(string CodeVersion, string Content) { WriteEvent(14, CodeVersion, Content); }
 
         [Event(15, Keywords = Keywords.Config, Level = EventLevel.Error, Channel = EventChannel.Admin,
             Message = "config: error='{0}'")]
@@ -68,7 +72,7 @@ namespace MobileId.Adfs
 
         [Event(21, Keywords = Keywords.Service | Keywords.Audit | EventKeywords.AuditSuccess, Level = EventLevel.Informational, Channel = EventChannel.Admin,
             Message = "authentication success: upn={2}, msspTransId={3}, stateOld={0}, stateNew={1}")]
-        public void AuthenticationSucess(int StateOld, int StateNew, string Upn, string MsspTransId) { WriteEvent(21, StateOld, StateNew, Upn, MsspTransId); }
+        public void AuthenticationSuccess(int StateOld, int StateNew, string Upn, string MsspTransId) { WriteEvent(21, StateOld, StateNew, Upn, MsspTransId); }
 
         [Event(22, Keywords = Keywords.Service | Keywords.Audit | EventKeywords.AuditFailure, Level = EventLevel.Warning, Channel = EventChannel.Admin,
             Message = "authentication failure: upn={2}, reason={4}, msspTransId={3}, stateOld={0}, stateNew={1}")]
