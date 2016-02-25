@@ -3,6 +3,7 @@ using System.Configuration;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 
 namespace MobileId
@@ -30,11 +31,14 @@ namespace MobileId
         bool _enableSubscriberInfo = false;
         bool _ignoreUserSn = false;
         bool _ignoreUserSnChange = false;
-        int _pollResponseDelaySeconds = 10;
+        int _pollResponseDelaySeconds = 3;
         int _pollResponseIntervalSeconds = 1;
         UserSerialNumberPolicy _userSericalNumberPolicy = UserSerialNumberPolicy.allowAbsence | UserSerialNumberPolicy.allowMismatch;
         bool _disableSignatureValidation = false;
         bool _disableSignatureCertValidation = false;
+        bool _sanitizePhoneNumber = false;
+        Regex _sanitizePhoneNumberRegex = new Regex("\\D", RegexOptions.Compiled, TimeSpan.FromSeconds(1.0));
+        string _sanitizePhoneNumberReplacement = "";
 
         public static WebClientConfig CreateConfigFromFile(string fileName)
         {
@@ -105,6 +109,15 @@ namespace MobileId
                             cfg.DisableSignatureValidation = Boolean.Parse(s);
                         if (!string.IsNullOrWhiteSpace(s = xml["DisableSignatureCertValidation"]))
                             cfg.DisableSignatureCertValidation = Boolean.Parse(s);
+                        if ((s = xml["SanitizePhoneNumber"]) != null)
+                            cfg.SanitizePhoneNumber = bool.Parse(s);
+                        if (cfg.SanitizePhoneNumber)
+                        {
+                            if ((s = xml["SanitizePhoneNumberPattern"]) != null)
+                                cfg.SanitizePhoneNumberPattern = s;
+                            if ((s = xml["SanitizePhoneNumberReplacement"]) != null)
+                                cfg.SanitizePhoneNumberReplacement = s;
+                        };
                         // TODO: update on change of properties
                         
                         break;
@@ -249,6 +262,49 @@ namespace MobileId
             set { _disableSignatureCertValidation = value; }
         }
 
+        /// <summary>
+        /// If true, phone numbers read from the attribute store are transformed before use in Mobile ID calls. 
+        /// By default, the sanitization removes all non-digits from the input strings. The sanitization is done by
+        /// applying a regular expression on the input. The regex matching and replace are defined by 
+        /// <paramref name="SanitizePhoneNumberPattern"/> and <paramref name="SanitizePhoneNumberReplacement"/>.
+        /// </summary>
+        public bool SanitizePhoneNumber
+        {
+            get { return _sanitizePhoneNumber; }
+            set { _sanitizePhoneNumber = value; }
+        }
+
+        /// <summary>
+        /// The pattern used to create the Regex for sanitization of phone number. 
+        /// Only effective when <paramref name="SanitizePhoneNumber"/> is true.
+        /// </summary>
+        public string SanitizePhoneNumberPattern
+        {
+            get { return _sanitizePhoneNumberRegex.ToString(); }
+            set
+            {
+                _sanitizePhoneNumberRegex = new Regex(value, RegexOptions.Compiled, TimeSpan.FromSeconds(1.0));
+            }
+        }
+
+        /// <summary>
+        /// <paramref name="SanitizePhoneNumberPattern"/> as Regex.
+        /// </summary>
+        public Regex SanitizePhoneNumberRegex
+        {
+            get { return _sanitizePhoneNumberRegex; }
+        }
+
+        /// <summary>
+        /// The replace string used in phone number sanitization.
+        /// Only effective when <paramref name="SanitizePhoneNumber"/> is true.
+        /// </summary>
+        public string SanitizePhoneNumberReplacement
+        {
+            get { return _sanitizePhoneNumberReplacement; }
+            set { _sanitizePhoneNumberReplacement = value; }
+        }
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder(768);  // TODO: update on change
@@ -263,7 +319,10 @@ namespace MobileId
             sb.Append("; PollResponseDelaySeconds:").Append(_pollResponseDelaySeconds);
             sb.Append("; PollResponseIntervalSeconds:").Append(_pollResponseIntervalSeconds);
             sb.Append("; RequestTimeOutSeconds:").Append(_requestTimeOutSeconds);
-            sb.Append("; SeedApTransId:\"").Append(_seedApTransId);
+            sb.Append("; SanitizePhoneNumber: ").Append(_sanitizePhoneNumber);
+            sb.Append("; SanitizePhoneNumberPattern: \"").Append(_sanitizePhoneNumberRegex.ToString());
+            sb.Append("\"; SanitizePhoneNumberReplacement: \"").Append(_sanitizePhoneNumberReplacement);
+            sb.Append("\"; SeedApTransId:\"").Append(_seedApTransId);
             sb.Append("\"; ServiceUrlPrefix=\"").Append(_serviceUrlPrefix);
             sb.Append("\"; SrvSideValidation:").Append(_srvSideValidation);
             sb.Append("; SslKeystore:").Append(_sslKeyStore);

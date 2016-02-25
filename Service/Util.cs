@@ -137,5 +137,20 @@ namespace MobileId
             }
         }
 
+        public static string SanitizePhoneNumber(string displayedPhoneNumber, WebClientConfig cfg)
+        {
+            if (cfg == null) throw new ArgumentNullException("WebClientConfig");
+            if (!cfg.SanitizePhoneNumber)
+                return displayedPhoneNumber;
+            string msisdn = cfg.SanitizePhoneNumberRegex.Replace(displayedPhoneNumber, cfg.SanitizePhoneNumberReplacement);
+            int len = msisdn.Length;
+            if (len < AuthRequestDto.MIN_MSISDN_DIGITS || len > AuthRequestDto.MAX_MSISDN_DIGITS)
+            {
+                throw new ArgumentOutOfRangeException("lengthMsisdnSanitized", len.ToString() );
+            };
+            return msisdn;
+        }
+
+
     }
 }
