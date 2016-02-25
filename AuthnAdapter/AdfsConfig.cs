@@ -18,6 +18,7 @@ namespace MobileId.Adfs
         bool _showDebugMsg = false;
         bool _expShowWSignOut = false;
         int _loginNonceLength = 5;
+
         Dictionary<UserLanguage, string> _loginPrompt = new Dictionary<UserLanguage, string>(); // override the text in resource
 
         /// <summary>
@@ -158,7 +159,7 @@ namespace MobileId.Adfs
                 String s;
                 while (xml.Read())
                 {
-                    // we process only the <mobileIdClient .../> element and ignore everything else
+                    // we process only attributes of the <mobileIdAdfs .../> element and ignore everything else
                     if (xml.Name == "mobileIdAdfs")
                     {
                         cfg.AdAttrMobile = xml["AdAttrMobile"];
@@ -213,10 +214,10 @@ namespace MobileId.Adfs
             sb.Append("; SessionMaxTries: ").Append(_sessionMaxTries);
             sb.Append("; SessionTimeoutSeconds: ").Append(_sessionTimeoutSeconds);
             sb.Append("; ShowDebugMsg: ").Append(_showDebugMsg);
-            sb.Append("; SsoOnCancle: ").Append(_ssoOnCancel);
+            sb.Append("; SsoOnCancel: ").Append(_ssoOnCancel);
             sb.Append("; WebClientMaxRequest: ").Append(_webClientMaxRequest);
-            // TODO: update on change
             sb.Append("}");
+            // TODO: update on change
             return sb.ToString();
         }
     }
