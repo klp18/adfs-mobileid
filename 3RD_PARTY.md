@@ -60,4 +60,22 @@ provided that the following conditions are met:
 4. Modified versions in source or binary form must be plainly marked as
    such, and must not be misrepresented as being the original software.
 
+## 7-Zip (http://www.7-zip.org/)
+
+7-Zip Copyright (C) 1999-2015 Igor Pavlov.
+
+Licenses for files are:
+
+  1) 7z.dll: GNU LGPL + unRAR restriction
+  2) All other files:  GNU LGPL
+
+The GNU LGPL + unRAR restriction means that you must follow both 
+GNU LGPL rules and unRAR restriction rules.
+
+Note: 
+    You can use 7-Zip on any computer, including a computer in a commercial 
+    organization. You don't need to register or pay for 7-Zip.
+
+Further details are described in http://www.7-zip.org/license.txt
+
 __END__
