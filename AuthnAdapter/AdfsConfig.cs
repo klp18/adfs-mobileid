@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace MobileId.Adfs
 {
-    class AdfsConfig
+    public class AdfsConfig
     {
         ulong _webClientMaxRequest = 100;
         string _adAttrMobile = "mobile";  // LDAP attribute 0.9.2342.19200300.100.1.41, see https://msdn.microsoft.com/en-us/library/ms677119.aspx
@@ -26,8 +26,13 @@ namespace MobileId.Adfs
         /// the WebClient must be re-cycled (i.e. closed and re-created). Default is 100.
         /// </summary>
         public ulong WebClientMaxRequest { 
-            get { return _webClientMaxRequest; } 
-            set { if (value > 0) _webClientMaxRequest = value; }
+            get { return _webClientMaxRequest; }
+            set {
+                if (value > 0)
+                    _webClientMaxRequest = value;
+                else
+                    throw new ArgumentOutOfRangeException("WebClientMaxRequest", value, "value must be positive"); 
+            }
         }
 
         /// <summary>
@@ -40,7 +45,9 @@ namespace MobileId.Adfs
             get { return _adAttrMobile; }
             set {
                 if (!String.IsNullOrWhiteSpace(value) && !value.Contains(" "))
-                _adAttrMobile = value.ToLower(System.Globalization.CultureInfo.InvariantCulture); 
+                    _adAttrMobile = value.ToLower(System.Globalization.CultureInfo.InvariantCulture);
+                else
+                    throw new ArgumentOutOfRangeException("AdAttrMobile");
             }
         }
 
@@ -54,8 +61,10 @@ namespace MobileId.Adfs
         public string AdAttrMidSerialNumber {
             get { return _adAttrMidSerialNumber;}
             set {
-                if (!String.IsNullOrWhiteSpace(value) && !value.Contains(" ")) 
-                _adAttrMidSerialNumber = value.ToLower(System.Globalization.CultureInfo.InvariantCulture); 
+                if (!String.IsNullOrWhiteSpace(value) && !value.Contains(" "))
+                    _adAttrMidSerialNumber = value.ToLower(System.Globalization.CultureInfo.InvariantCulture);
+                else
+                    throw new ArgumentOutOfRangeException("AdAttrMidSerialNumber");
             }
         }
 
@@ -97,7 +106,12 @@ namespace MobileId.Adfs
         /// </summary>
         public int SessionTimeoutSeconds {
             get { return _sessionTimeoutSeconds; }
-            set { if (value > 0) _sessionTimeoutSeconds = value;}
+            set {
+                if (value > 0)
+                    _sessionTimeoutSeconds = value;
+                else
+                    throw new ArgumentOutOfRangeException("SessionTimeoutSeconds", value, "value must be positive");
+            }
         }
 
         /// <summary>
@@ -105,7 +119,12 @@ namespace MobileId.Adfs
         /// </summary>
         public int SessionMaxTries {
             get { return _sessionMaxTries;}
-            set { if (value > 0) _sessionMaxTries = value; }
+            set {
+                if (value > 0)
+                    _sessionMaxTries = value;
+                else
+                    throw new ArgumentOutOfRangeException("SessionMaxTries", value, "value must be positive");
+            }
         }
 
         /// <summary>
@@ -121,7 +140,12 @@ namespace MobileId.Adfs
         /// </summary>
         public int LoginNonceLength {
             get { return _loginNonceLength; }
-            set { if (value > 0 && value < AuthRequestDto.MAX_UTF8_CHARS_DTBS ) _loginNonceLength = value; }
+            set {
+                if (value > 0 && value < AuthRequestDto.MAX_UTF8_CHARS_DTBS)
+                    _loginNonceLength = value;
+                else
+                    throw new ArgumentOutOfRangeException("LoginNonceLength", value, "value must be between 1 and " + AuthRequestDto.MAX_UTF8_CHARS_DTBS);
+            }
         }
 
         /// <summary>
@@ -162,13 +186,15 @@ namespace MobileId.Adfs
                     // we process only attributes of the <mobileIdAdfs .../> element and ignore everything else
                     if (xml.Name == "mobileIdAdfs")
                     {
-                        cfg.AdAttrMobile = xml["AdAttrMobile"];
+                        if (!String.IsNullOrWhiteSpace(s = xml["AdAttrMobile"]))
+                           cfg.AdAttrMobile = s;
                         if (!String.IsNullOrWhiteSpace(s = xml["WebClientMaxRequest"]))
-                          cfg.WebClientMaxRequest = ulong.Parse(s);
-                        cfg.AdAttrMidSerialNumber = xml["AdAttrMidSerialNumber"];
+                           cfg.WebClientMaxRequest = ulong.Parse(s);
+                        if (!String.IsNullOrWhiteSpace(s = xml["AdAttrMidSerialNumber"]))
+                           cfg.AdAttrMidSerialNumber = s;
                         // cfg.DefaultLoginPrompt = xml["DefaultLoginPrompt"]; // TODO: deprecated
                         if (!String.IsNullOrWhiteSpace(s = xml["SsoOnCancel"]))
-                            cfg.SsoOnCancel = bool.Parse(xml[s]);
+                            cfg.SsoOnCancel = bool.Parse(s);
                         if (!String.IsNullOrWhiteSpace(s = xml["SessionTimeoutSeconds"]))
                             cfg.SessionTimeoutSeconds = int.Parse(s);
                         if (!String.IsNullOrWhiteSpace(s = xml["SessionMaxTries"]))
