@@ -100,12 +100,15 @@ resgen.exe $(ProjectDir)\MssError.it.txt $(ProjectDir)\MssError.it.resx
     <PostBuildEvent>@echo copy /Y $(TargetPath) $(SolutionDir)\binaries\$(TargetFileName)
 copy /Y $(TargetPath) $(SolutionDir)\binaries\$(TargetFileName)
 
+mkdir $(SolutionDir)\binaries\de
 @echo copy /Y $(TargetDir)\de\$(TargetName).resources.dll $(SolutionDir)\binaries\de\$(TargetName).resources.dll
-copy /Y $(TargetDir)\de\$(TargetName).resources.dll $(SolutionDir)\binaries\de
+copy /Y $(TargetDir)\de\$(TargetName).resources.dll $(SolutionDir)\binaries\de\$(TargetName).resources.dll
 
+mkdir $(SolutionDir)\binaries\fr
 @echo copy /Y $(TargetDir)\fr\$(TargetName).resources.dll $(SolutionDir)\binaries\fr\$(TargetName).resources.dll
 copy /Y $(TargetDir)\fr\$(TargetName).resources.dll $(SolutionDir)\binaries\fr\$(TargetName).resources.dll
 
+mkdir $(SolutionDir)\binaries\it
 @echo copy /Y $(TargetDir)\it\$(TargetName).resources.dll $(SolutionDir)\binaries\it\$(TargetName).resources.dll
 copy /Y $(TargetDir)\it\$(TargetName).resources.dll $(SolutionDir)\binaries\it\$(TargetName).resources.dll
 
