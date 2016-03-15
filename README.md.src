@@ -129,7 +129,7 @@ while the element `mobileIdAdfs` specifies the integration of Mobile ID with ADF
 
 ### Step 3a: Installation of Mobile ID Authentication Provider for ADFS with Installer
 
-The installation is automated by the [setup](../binaries) program. We recommend you to use the installer (i.e. start `midadfs_setup_1.2.0.0.exe` and follow the wizard).
+The installation is automated by the [setup](../binaries) program. We recommend you to use the installer (i.e. start `midadfs_setup_<% $VersionLong or die %>.exe` and follow the wizard).
 The setup program 
 
 * unpacks all necessary files to the file system
@@ -149,32 +149,32 @@ Note 1: The version numbers in the commands may change on version upgrade. You m
 
 Note 2: For a deployment in an ADFS farm, this step must be run on ADFS member servers, unless otherwise specified.
 
-1. Download (or build) all DLLs (e.g. `MobileId.Adfs.AuthnAdapter.dll`) from the [binaries](../binaries), for example to `C:\midadfs\v1.2`.
+1. Download (or build) all DLLs (e.g. `MobileId.Adfs.AuthnAdapter.dll`) from the [binaries](../binaries), for example to `C:\midadfs\v<% $VersionShort %>`.
 
 2. Install the all DLLs into Global Assembly Cache (GAC): Open a Windows PowerShell prompt, enters
    `````
-   Set-location "C:\midadfs\v1.2"
+   Set-location "C:\midadfs\v<% $VersionShort or die %>"
    [System.Reflection.Assembly]::Load("System.EnterpriseServices, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")
    $publish = New-Object System.EnterpriseServices.Internal.Publish
-   $publish.GacInstall("C:\midadfs\v1.2\MobileId.Adfs.AuthnAdapter.dll")
+   $publish.GacInstall("C:\midadfs\v<% $VersionShort %>\MobileId.Adfs.AuthnAdapter.dll")
    `````
    Alternatively, you can also install the DLL with command `gacutil.exe /i MobileId.Adfs.AuthnAdapter.dll`. 
    (`gacutil.exe` is available in Visual Studio 2013, default location `C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1A\bin\NETFX 4.5.1 Tools`.)
    Repeat these for all DLLs.
 
-3. Register the DLL with ADFS on the primary ADFS server: Take a note of the version of `MobileId.Adfs.AuthenticationAdapter.dll` (right-click the DLL file in Windows Explorer, select `Properties`, `Details`, read `File Version`). In the example below, we assume it is `1.2.0.0`. In Windows PowerShell prompt, entertaining
+3. Register the DLL with ADFS on the primary ADFS server: Take a note of the version of `MobileId.Adfs.AuthenticationAdapter.dll` (right-click the DLL file in Windows Explorer, select `Properties`, `Details`, read `File Version`). In the example below, we assume it is `<% $VersionLong %>`. In Windows PowerShell prompt, entertaining
    `````
-   $TypeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=1.2.0.0, Culture=neutral, PublicKeyToken=2d8af5277000f5f0, processorArchitecture=MSIL"
-   Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileId.Adfs.AuthnAdapter.xml" -TypeName $TypeName -Name "MobileID12"
+   $TypeName = "MobileId.Adfs.AuthenticationAdapter, MobileId.Adfs.AuthnAdapter, Version=<% $VersionLong %>, Culture=neutral, PublicKeyToken=2d8af5277000f5f0, processorArchitecture=MSIL"
+   Register-AdfsAuthenticationProvider -ConfigurationFilePath "C:\midadfs\MobileId.Adfs.AuthnAdapter.xml" -TypeName $TypeName -Name "MobileID<% $VersionAbb or die %>"
    `````
    Notes: 
    * If you build the DLL from source, you may have a different `PublicKeyToken` value. In this case, you need to modify the value `PublicKeyToken` in the command above.
    * If the DLL has a different value, you need to replace the value of `Version`.
 
-4. Install static web resources (`C:\midadfs\v1.2\spin.min.js` in this example) into ADFS on the primary ADFS server: In Windows PowerShell prompt, enters
+4. Install static web resources (`C:\midadfs\v<% $VersionShort %>\spin.min.js` in this example) into ADFS on the primary ADFS server: In Windows PowerShell prompt, enters
    `````
    New-AdfsWebTheme -Name custom -SourceName default
-   Set-AdfsWebTheme -TargetName custom -AdditionalFileResource @{Uri="/adfs/portal/script/spin.js";path="C:\midadfs\v1.2\spin.min.js"}
+   Set-AdfsWebTheme -TargetName custom -AdditionalFileResource @{Uri="/adfs/portal/script/spin.js";path="C:\midadfs\v<% $VersionShort %>\spin.min.js"}
    Set-AdfsWebConfig -ActiveThemeName custom
    `````
 
@@ -183,10 +183,10 @@ Note 2: For a deployment in an ADFS farm, this step must be run on ADFS member s
    In Windows PowerShell prompt, enters
 
    `````
-   wevtutil.exe um C:\midadfs\v1.2\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.man
-   wevtutil.exe im C:\midadfs\v1.2\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.man /rf:C:\midadfs\v1.2\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.dll /mf:C:\midadfs\v1.2\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.dll
-   wevtutil.exe um C:\midadfs\v1.2\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.etwManifest.man
-   wevtutil.exe im C:\midadfs\v1.2\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.etwManifest.man /rf:C:\midadfs\v1.2\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.dll /mf:C:\midadfs\v1.2\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.dll
+   wevtutil.exe um C:\midadfs\v<% $VersionShort %>\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.man
+   wevtutil.exe im C:\midadfs\v<% $VersionShort %>\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.man /rf:C:\midadfs\v<% $VersionShort %>\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.dll /mf:C:\midadfs\v<% $VersionShort %>\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.dll
+   wevtutil.exe um C:\midadfs\v<% $VersionShort %>\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.etwManifest.man
+   wevtutil.exe im C:\midadfs\v<% $VersionShort %>\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.etwManifest.man /rf:C:\midadfs\v<% $VersionShort %>\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.dll /mf:C:\midadfs\v<% $VersionShort %>\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.dll
 
    `````
    In PowerShell:
@@ -205,7 +205,7 @@ Note 2: For a deployment in an ADFS farm, this step must be run on ADFS member s
 
 7. Verify the installation of the DLL on the primary ADFS server
    `````
-   Get-AdfsAuthenticationProvider "MobileID12"
+   Get-AdfsAuthenticationProvider "MobileID<% $VersionAbb %>"
    `````
 
 ### Step 4: Configuration of ADFS
@@ -244,10 +244,10 @@ For Mobile ID authentication, `userPrincipleName` and `mobile` must be defined.
 
 ### Configuration change
 
-If you have modified a configuration file, say `C:\midadfs\v1.2\MobileId.Adfs.AuthnAdapter.xml`, after installation,
+If you have modified a configuration file, say `C:\midadfs\v<% $VersionShort %>\MobileId.Adfs.AuthnAdapter.xml`, after installation,
 you need re-import the config file into ADFS with PowerShell and restart the and restart the `Active Directory Federation Services` and any dependent services:
 `````
-Import-AdfsAuthenticationProviderConfigurationData -FilePath "C:\midadfs\v1.2\MobileId.Adfs.AuthnAdapter.xml" -Name "MobileID12"
+Import-AdfsAuthenticationProviderConfigurationData -FilePath "C:\midadfs\v<% $VersionShort %>\MobileId.Adfs.AuthnAdapter.xml" -Name "MobileID<% $VersionAbb %>"
 net stop drs
 net stop adfssrv
 net start adfssrv
@@ -281,8 +281,8 @@ If you have installed Mobile ID authentication provider without a setup program,
    Close `Windows Event Viewer`.
    In Windows Command Prompt, enter
    `````
-   wevtutil.exe um C:\midadfs\v1.2\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.man
-   wevtutil.exe um C:\midadfs\v1.2\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.etwManifest.man
+   wevtutil.exe um C:\midadfs\v<% $VersionShort %>\lib\MobileId.ClientService.Swisscom-MobileID-Client.etwManifest.man
+   wevtutil.exe um C:\midadfs\v<% $VersionShort %>\lib\MobileId.Adfs.AuthnAdapter.Swisscom-MobileID-Adfs.etwManifest.man
    del /Q C:\Windows\System32\winevt\Logs\Swisscom-MobileID-*.*
 
    `````
